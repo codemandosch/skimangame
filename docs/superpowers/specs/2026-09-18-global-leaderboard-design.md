@@ -2,14 +2,14 @@
 
 ## Goal
 
-Add a global high-score leaderboard to Mad Steez while preventing players from extending runs indefinitely by skating uphill. Each run lasts at most 60 seconds. Only scores that currently qualify for the global top ten prompt for a username, and each username keeps only its single best score.
+Add a global high-score leaderboard to Mad Steez while preventing players from extending their competitive score indefinitely by skating uphill. Each run has a 75-second scoring window, but the player may continue skiing after it expires. Only scores that currently qualify for the global top ten prompt for a username, and each username keeps only its single best score.
 
 ## Scope
 
 The feature includes:
 
-- A visible 60-second run timer.
-- Automatic run completion when the timer reaches zero.
+- A visible 75-second scoring timer.
+- Score freezing when the timer reaches zero without ending gameplay.
 - A global top-ten leaderboard backed by the Site's D1 database.
 - A username prompt only for qualifying runs.
 - One best score per case-insensitive username.
@@ -18,13 +18,13 @@ The feature includes:
 
 This version deliberately uses lightweight client-side score submission. It is suitable for a friends leaderboard but is not intended to resist a determined attacker who fabricates API requests.
 
-## Run Timing
+## Scoring Window
 
-The countdown starts when the skier leaves the summit/start state and the run becomes active. It counts only active simulation time: pausing freezes the timer, and restarting clears it back to 60 seconds.
+The countdown starts when the skier leaves the summit/start state and the run becomes active. It counts only active simulation time: pausing freezes the timer, and restarting clears it back to 75 seconds.
 
-The HUD displays the remaining time as `0:60` through `0:00`. When the remaining time reaches zero, the game marks the run finished immediately, stops accepting gameplay input, and opens the normal finish flow with the score accumulated at that moment. Reaching the existing mountain finish before zero continues to end the run normally.
+The HUD displays the remaining time as `1:15` through `0:00`. When the remaining time reaches zero, the game captures and freezes the competitive score. Gameplay continues normally: the skier can keep moving, perform tricks, and reach the existing mountain finish. Tricks and landings after zero still animate and may display their names, but award no additional points. The HUD keeps the timer at `0:00` and visibly marks the score as locked.
 
-The time limit is a gameplay rule enforced in the browser, matching the chosen lightweight approach.
+Reaching the existing mountain finish before zero ends the run normally with the score earned up to that point. Reaching it after zero uses the frozen score. The leaderboard qualification check and username prompt occur only after the run eventually finishes. The scoring limit is enforced in the browser, matching the chosen lightweight approach.
 
 ## Leaderboard Data Model
 
@@ -60,13 +60,13 @@ The server is the final authority on whether a score remains in the top ten. Thi
 
 ## Client Flow and UI
 
-The game loads the leaderboard at startup without blocking play. The finish screen refreshes it before deciding whether to request a username.
+The game loads the leaderboard at startup without blocking play. The finish screen refreshes it before deciding whether to request a username, using either the natural finish score or the score frozen at `0:00`.
 
 A run qualifies for the username prompt when there are fewer than ten entries or its score is strictly greater than the current tenth-place score. The prompt uses an accessible form embedded in the finish panel rather than a browser prompt. It shows the score, a username field, Save and Skip controls, validation feedback, and a short explanation that only a player's best score is retained.
 
 After submission, the finish panel replaces the form with the returned leaderboard and highlights the submitted username when it remains ranked. If the server rejects or displaces the score, the UI explains that the board changed and shows the current top ten. Non-qualifying runs show the leaderboard without asking for a username.
 
-The top ten is also available on the finish screen after ordinary completion or timeout. Existing restart controls continue to work whether loading or submission succeeds or fails.
+The top ten is available when the player finishes either before or after the scoring window expires. Existing restart controls continue to work whether loading or submission succeeds or fails.
 
 ## Failure Handling
 
@@ -92,7 +92,7 @@ The hosting manifest adds the logical `DB` D1 binding and removes the static-onl
 
 Automated tests cover:
 
-- Timer start, pause, restart, natural finish, and timeout behavior.
+- Timer start, pause, restart, natural finish, score freezing at 75 seconds, continued post-expiry gameplay, and rejection of post-expiry points.
 - Qualification with zero through ten entries and the strict tenth-place boundary.
 - Username normalization and validation.
 - Server-side insert, best-score-only update, worse-score rejection, deterministic ties, and pruning to ten rows.
