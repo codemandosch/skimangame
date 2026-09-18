@@ -1,0 +1,60 @@
+{
+  "source": "C:\\Users\\gaza\\Projects\\skimangame\\art\\characters\\freestyle-skier\\tripo\\download\\tripo_convert_f4a6cf92-b8cd-4ccd-9033-734e3fc8c165.fbx",
+  "bones": {},
+  "clips": {},
+  "bounds": [
+    [
+      -0.29429519176483154,
+      0.29493486881256104
+    ],
+    [
+      -0.10446345061063766,
+      0.10500786453485489
+    ],
+    [
+      -4.578140089250837e-09,
+      0.9781897068023682
+    ]
+  ],
+  "meshes": {
+    "tripo_node_f4a6cf92": {
+      "vertices": 11704,
+      "triangles": 23339,
+      "groups": 0
+    }
+  },
+  "images": [
+    {
+      "name": "ski_jacket_3d_model_metallic",
+      "size": [
+        2048,
+        2048
+      ],
+      "loaded": true
+    },
+    {
+      "name": "ski_jacket_3d_model_roughness",
+      "size": [
+        2048,
+        2048
+      ],
+      "loaded": true
+    },
+    {
+      "name": "tripo_image_f4a6cf92_0",
+      "size": [
+        2048,
+        2048
+      ],
+      "loaded": true
+    },
+    {
+      "name": "tripo_image_f4a6cf92_3",
+      "size": [
+        1024,
+        1024
+      ],
+      "loaded": true
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+  <head>
+    <title>SKIMANGAME rider pose checks</title>
+    <style>
+      body {
+        margin: 0;
+        background: #253746;
+        color: white;
+        font: 14px Arial;
+      }
+      nav {
+        position: absolute;
+        z-index: 1;
+        padding: 18px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      button {
+        padding: 10px;
+        background: #e0ef61;
+        border: 0;
+        cursor: pointer;
+      }
+      #readout {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <button data-pose="neutral">Neutral</button
+      ><button data-pose="left">Carve left</button
+      ><button data-pose="right">Carve right</button
+      ><button data-pose="tuck">Tuck</button
+      ><button data-pose="charge">Charge</button
+      ><button data-pose="takeoff">Takeoff</button
+      ><button data-pose="air">Airborne</button
+      ><button data-pose="landing">Landing</button
+      ><button data-pose="mute">Mute grab</button
+      ><button data-pose="daffy">Daffy</button
+      ><button data-pose="japan">Japan grab</button
+      ><button data-pose="octo">Octo grab</button
+      ><button data-pose="blunt">Blunt grab</button
+      ><button data-pose="tail">Tail grab</button
+      ><button id="stance-toggle">Toggle switch</button
+      ><button id="view">Rotate view</button>
+      <button data-angle="3.141593">Front</button>
+      <button data-angle="1.570796">Side</button>
+      <button data-angle="0">Rear</button>
+      <button id="sequence">Play transitions</button>
+    </nav>
+    <div id="readout"></div>
+    <script type="module" src="./rider-lab.js"></script>
+  </body>
+</html>

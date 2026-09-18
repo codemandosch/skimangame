@@ -1,0 +1,50 @@
+{
+  "sourceWorkspace": "https://studio.tripo3d.ai/workspace/texture/f6c681fd-a26e-4c19-bc88-db9582fced8e",
+  "sourceArchiveSha256": "A335F121C60816F6469A67C088FFFA8BD29D985858F0A96B0553602F851E0708",
+  "sourceBounds": [
+    [
+      -0.1960226148366928,
+      -0.4886220693588257,
+      2.8226939008391128e-08
+    ],
+    [
+      0.1960226148366928,
+      0.4886220693588257,
+      0.13195663690567017
+    ]
+  ],
+  "finalBounds": [
+    [
+      -0.0949999988079071,
+      0.0949999988079071
+    ],
+    [
+      0.0,
+      0.3199999928474426
+    ],
+    [
+      -1.409999966621399,
+      1.409999966621399
+    ]
+  ],
+  "up": "+Y",
+  "forward": "-Z",
+  "vertices": 4407,
+  "triangles": 8822,
+  "textures": [
+    {
+      "name": "blackridge_ski_basecolor",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "blackridge_ski_normal",
+      "size": [
+        2048,
+        2048
+      ]
+    }
+  ]
+}

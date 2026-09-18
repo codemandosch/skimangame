@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#162b39" />
+    <meta
+      name="description"
+      content="Drop into SKIMANGAME: a five-jump, arcade freestyle skiing game."
+    />
+    <title>SKIMANGAME — Freestyle Skiing</title>
+  </head>
+  <body>
+    <canvas id="game" aria-label="Third-person downhill skiing game"></canvas>
+    <div id="vignette"></div>
+    <div id="speed-lines"></div>
+    <main id="hud">
+      <header>
+        <div class="brand">
+          <span class="mountain-icon">╱╲</span>
+          <div>SKIMANGAME<span>FREESTYLE SKIING</span></div>
+          <i>FREESTYLE / VOL. 01</i>
+        </div>
+        <div class="location">
+          <span class="live-dot"></span> NORTH PEAK
+          <span class="divider">/</span> <span>BLUEBIRD RUN</span>
+        </div>
+        <div class="top-actions">
+          <label class="map-picker">MAP <select id="map-select" aria-label="Select mountain map"></select></label>
+          <button id="sound" title="Toggle sound (M)" aria-label="Enable sound">
+            SOUND <span id="sound-status">OFF</span></button
+          ><button id="pause" title="Pause (Escape)">
+            Ⅱ <span>PAUSE</span>
+          </button>
+        </div>
+      </header>
+      <section class="run-info">
+        <div class="eyebrow">THE MOUNTAIN IS YOURS</div>
+        <h1>DROP IN.<br /><em>STAND OUT.</em></h1>
+        <p>1,180 m of freedom. Five chances to fly.</p>
+        <div class="run-tag"><span>◆</span> SLOPESTYLE <b>05 JUMPS</b></div>
+      </section>
+      <section class="score-block">
+        <div class="eyebrow">RUN SCORE</div>
+        <div id="score">000000</div>
+        <div class="best">PERSONAL BEST <b id="best">0</b></div>
+      </section>
+      <section id="trick-display" class="hidden" aria-live="polite">
+        <div id="trick-kicker">IN THE AIR</div>
+        <div id="trick-title"></div>
+        <div id="trick-detail"></div>
+      </section>
+      <div id="air-info" class="hidden">
+        <span id="air-height">0.0</span> m <i>↑</i>
+        <span id="air-time">0.0</span> s
+      </div>
+      <section class="speed-block">
+        <div id="stance" class="hidden">↶ SWITCH</div>
+        <div class="eyebrow">SPEED / KM/H</div>
+        <div id="speed">50</div>
+        <div id="charge-wrap">
+          <span>POP</span>
+          <div><i id="charge-fill"></i></div>
+        </div>
+      </section>
+      <section class="course-info">
+        <div class="course-label">
+          <span id="next-jump">FIRST FLIGHT</span
+          ><span id="jump-distance">115 m</span>
+        </div>
+        <div class="course-track">
+          <div id="course-fill"></div>
+          <div id="jump-markers"></div>
+          <i id="course-rider"></i>
+        </div>
+        <div class="course-caption">
+          <span>SUMMIT <b>2,840 m</b></span
+          ><span id="jump-count">0 / 5 JUMPS</span
+          ><span>BASE <b>2,527 m</b></span>
+        </div>
+      </section>
+      <section id="mountain-nav" class="hidden" aria-label="Mountain navigation">
+        <span id="mountain-area">THE SUMMIT</span>
+        <canvas id="mountain-map" aria-label="Mountain contour map"></canvas>
+        <span id="mountain-hint">← → TURN · ↑ PUSH OFF</span>
+      </section>
+      <div class="run-time">
+        <span class="eyebrow">RUN TIME</span><strong id="timer">00:00.00</strong
+        ><button id="restart" title="Respawn at the summit (R)">
+          ↺ <span>BACK TO TOP</span><kbd>R</kbd>
+        </button>
+      </div>
+      <footer>
+        <div>
+          <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd><kbd>IJKL</kbd
+          ><span>STEER / AIR TRICKS</span>
+        </div>
+        <div><kbd>SPACE</kbd><span>HOLD: CHARGE · RELEASE: POP</span></div>
+        <div><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>S</kbd><span>GRABS</span></div>
+        <div><kbd>A</kbd><span>DAFFY · RELEASE TO RECOVER</span></div>
+        <div class="landing-tip">
+          LEVEL YOUR SKIS BEFORE TOUCHDOWN <span>↗</span>
+        </div>
+      </footer>
+    </main>
+    <aside id="radio-player" aria-label="Internet rock radio">
+      <a href="https://radioparadise.com" target="_blank" rel="noopener noreferrer" title="Radio Paradise">RP <span>ROCK MIX</span></a>
+      <button id="radio-toggle" type="button" aria-label="Play rock radio" aria-pressed="false">▶ PLAY</button>
+      <span id="radio-status" role="status">OFF</span>
+      <label title="Radio volume">VOL <input id="radio-volume" type="range" min="0" max="100" value="35" aria-label="Radio volume" /></label>
+      <audio id="radio-audio" preload="none"></audio>
+    </aside>
+    <section
+      id="pause-panel"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pause-title"
+    >
+      <div class="panel">
+        <div class="eyebrow">TAKE A BREATHER</div>
+        <h2 id="pause-title">ON HOLD.</h2>
+        <p>The mountain can wait.</p>
+        <button id="resume" class="primary">KEEP RIDING <span>↗</span></button
+        ><button id="pause-restart" class="secondary">
+          ↺ BACK TO THE SUMMIT
+        </button>
+        <div class="panel-controls">
+          <p><b>↑ / I</b> Tuck · <b>↓ / K</b> Brake · <b>← → / J L</b> Carve</p>
+          <p><b>Space</b> Hold to charge · Release to pop</p>
+          <p><b>In air: ↑ ↓ / I K</b> Frontflip / backflip · <b>← → / J L</b> Spin</p>
+          <p><b>Q</b> Mute · <b>W</b> Blunt · <b>E</b> Tail · <b>S</b> Octo · <b>D</b> Japan · <b>R</b> Respawn · <b>M</b> Sound</p>
+          <p><b>A</b> Daffy: hold to split the skis forward/back and grab the front nose and rear tail (0.5s). Release to recover (0.5s) before landing to avoid a wipeout.</p>
+          <p>Hold an arrow through takeoff to start a trick. Opposite flip input slows it before reversing; release to ease rotation to a stop. Release the arrows before takeoff for a straight air.</p>
+        </div>
+      </div>
+    </section>
+    <section
+      id="finish-panel"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="finish-title"
+    >
+      <div class="panel">
+        <div class="eyebrow">BOTTOM OF THE MOUNTAIN. TOP OF YOUR GAME.</div>
+        <h2 id="finish-title">THAT’S A RUN.</h2>
+        <div id="final-score">0</div>
+        <p id="final-detail"></p>
+        <button id="again" class="primary">ONE MORE RUN <span>↗</span></button>
+      </div>
+    </section>
+    <div id="loading">
+      <span class="eyebrow">SKIMANGAME</span>
+      <h2>FINDING FRESH SNOW<span>…</span></h2>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

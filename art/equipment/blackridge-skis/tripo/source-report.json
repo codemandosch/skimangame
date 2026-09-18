@@ -1,0 +1,44 @@
+{
+  "source": "C:\\Users\\gaza\\Projects\\skimangame\\art\\equipment\\blackridge-skis\\tripo\\download\\blackridge-ski.fbx",
+  "bounds": [
+    [
+      -0.1960226148366928,
+      0.1960226148366928
+    ],
+    [
+      -0.4886220693588257,
+      0.4886220693588257
+    ],
+    [
+      -3.688993999162449e-08,
+      0.13195666670799255
+    ]
+  ],
+  "meshes": {
+    "tripo_node_af7b7ac7-e8f2-4a06-85d9-eeb9719c9cd4": {
+      "vertices": 4407,
+      "triangles": 8822,
+      "materials": [
+        "tripo_node_af7b7ac7-e8f2-4a06-85d9-eeb9719c9cd4_material.001"
+      ]
+    }
+  },
+  "images": [
+    {
+      "name": "blackridge_ski_basecolor",
+      "size": [
+        2048,
+        2048
+      ],
+      "loaded": true
+    },
+    {
+      "name": "blackridge_ski_normal",
+      "size": [
+        2048,
+        2048
+      ],
+      "loaded": true
+    }
+  ]
+}
