@@ -16,11 +16,12 @@ export function keyboardInput(keys, pop = false) {
     pitch: 0,
     spin: axis(["ArrowRight", "KeyL"], ["ArrowLeft", "KeyJ"]),
     flip: axis(["ArrowUp", "KeyI"], ["ArrowDown", "KeyK"]),
-    tuck: held("ArrowUp", "KeyI"),
-    brake: held("ArrowDown", "KeyK"),
+    tuck: chargeHeld(keys),
+    skate: held("ControlLeft", "ControlRight"),
+    brake: false,
     charge: chargeHeld(keys),
     pop,
     daffy: keys.has("KeyA"),
-    grab: keys.has("KeyD") ? 5 : keys.has("KeyS") ? 4 : keys.has("KeyW") ? 3 : keys.has("KeyQ") ? 1 : keys.has("KeyE") ? 2 : 0,
+    grab: keys.has("KeyF") ? 7 : keys.has("KeyR") ? 6 : keys.has("KeyD") ? 5 : keys.has("KeyS") ? 4 : keys.has("KeyQ") ? 3 : keys.has("KeyW") ? 1 : keys.has("KeyE") ? 2 : 0,
   };
 }

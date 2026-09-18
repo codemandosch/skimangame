@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Euler } from "three";
 import { createRiderPose, updateRiderPose } from "../src/rider-pose.js";
-import { createState, step } from "../src/physics.js";
+import { createState, step, resolveLanding } from "../src/physics.js";
 
 test("tuck input lowers the hips and brings hands forward while skiing", () => {
   const s = createState();
@@ -112,4 +112,63 @@ test("taking off during a carve blends out body lean instead of snapping upright
   updateRiderPose(p, s, 1 / 120);
   assert.ok(Math.abs(p.hips.x - x) < 0.03);
   assert.ok(Math.abs(p.torsoRotation.z - roll) < 0.04);
+});
+
+test('landing squats deepen with airtime, soften on steep snow, and recover smoothly', () => {
+  function touchdown(airtime, grade, hz = 120) {
+    const s = { ...createState(), airborne: true, airtime };
+    const p = settle(s);
+    resolveLanding(s, { x: 0, s: -grade });
+    const impact = s.landingPulse;
+    let deepest = 0, peakTime = 0, previous = p.hips.y;
+    for (let i = 0; i < hz * 2; i++) {
+      step(s, {}, 1 / hz);
+      updateRiderPose(p, s, 1 / hz);
+      if (p.crouch > deepest) { deepest = p.crouch; peakTime = i / hz; }
+      assert.ok(Math.abs(p.hips.y - previous) < .23, 'compression must blend over frames');
+      for (let leg = 0; leg < 2; leg++)
+        assert.ok(p.legs[leg].foot.distanceTo(p.skis[leg].boot) < 1e-6);
+      previous = p.hips.y;
+    }
+    assert.ok(p.crouch < .02, 'rider stands back up after absorbing the impact');
+    return { deepest, peakTime, impact };
+  }
+  const soft = touchdown(.4, 0), hard = touchdown(4, 0), steep = touchdown(4, 1.5);
+  assert.ok(hard.deepest > soft.deepest + .25);
+  assert.ok(steep.deepest < hard.deepest * .6);
+  assert.ok(hard.peakTime > .05 && hard.peakTime < .25);
+  for (const hz of [30, 60]) assert.ok(Math.abs(touchdown(4, 0, hz).deepest - hard.deepest) < .035);
+});
+
+test('skids hold a deep squat and strong directional lean without steering, including switch', () => {
+  for (const direction of [-1, 1]) for (const switched of [false, true]) {
+    const s = { ...createState(), speed: 35, landingSkid: .9,
+      landingSkidDirection: direction, switch: switched };
+    const p = settle(s), local = direction * (switched ? -1 : 1);
+    assert.ok(p.crouch > .26, 'skid maintains its squat after the impact pulse fades');
+    assert.ok(p.hips.x * local > .45);
+    assert.ok(p.torsoRotation.z * local < -.7);
+    assert.ok(p.hips.y < .6);
+    for (let i = 0; i < 2; i++) {
+      assert.equal(p.skis[i].position.y, 0);
+      assert.ok(p.legs[i].foot.distanceTo(p.skis[i].boot) < 1e-6);
+    }
+    const previous = p.hips.clone();
+    s.landingSkidDirection = -direction;
+    updateRiderPose(p, s, 1 / 120);
+    assert.ok(p.hips.distanceTo(previous) < .12, 'a skid reversal should not snap the body');
+    s.landingSkid = 0;
+    for (let i = 0; i < 240; i++) updateRiderPose(p, s, 1 / 120);
+    assert.ok(Math.abs(p.hips.x) < .001 && p.crouch < .001);
+  }
+});
+
+test('airborne and rail poses ignore stale landing impact and skid signals', () => {
+  for (const flags of [{ airborne: true }, { railing: true }]) {
+    const s = { ...createState(), ...flags };
+    const baseline = settle(s);
+    const stale = settle({ ...s, landingPulse: .65, landingSkid: 1, landingSkidDirection: 1 });
+    assert.ok(stale.hips.distanceTo(baseline.hips) < 1e-8);
+    assert.equal(stale.torsoRotation.z, baseline.torsoRotation.z);
+  }
 });

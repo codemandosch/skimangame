@@ -48,13 +48,13 @@ test('spin, flip and pitch authority progressively fade over the same input inte
       return Math.abs(input === 'spin' ? s.spinVelocity : s.flipVelocity);
     });
     for (let i = 1; i < velocities.length; i++) assert.ok(velocities[i] < velocities[i - 1]);
-    assert.ok(velocities[3] < velocities[0] * (input === 'spin' ? 0.1 : 0.2));
+    assert.ok(velocities[3] < velocities[0] * (input === 'spin' ? 0.1 : 0.65));
   }
 });
 
-test('vertical corrections retain 15 percent authority late in long jumps', () => {
+test('vertical corrections retain 55 percent authority late in long jumps', () => {
   for (const input of ['flip', 'pitch']) for (const direction of [-1, 1]) {
-    const acceleration = input === 'flip' ? 3.2 : 1.2;
+    const acceleration = input === 'flip' ? 4 : 1.2;
     for (const airtime of [5, 12, 30]) {
       const s = createState();
       s.airborne = true;
@@ -62,7 +62,27 @@ test('vertical corrections retain 15 percent authority late in long jumps', () =
       s.airtime = airtime;
       fly(s, 0.25, { [input]: direction });
       const authority = s.flipVelocity * direction / (acceleration * 0.25);
-      assert.ok(authority >= 0.15 - 1e-10 && authority < 0.151);
+      assert.ok(authority >= 0.55 - 1e-10 && authority < 0.556);
+    }
+  }
+});
+
+test('up/down can substantially correct and eventually reverse a cork late in flight', () => {
+  for (const hz of [30, 60, 120]) for (const spin of [-1, 1]) for (const flip of [-1, 1]) {
+    for (const airtime of [3, 12]) {
+      const s = createState();
+      step(s, { pop: true, spin, flip }, 1 / 120);
+      s.y += 10000;
+      fly(s, airtime, { spin, flip }, hz);
+      const velocity = s.flipVelocity;
+      step(s, { spin, flip: -flip }, 1 / hz);
+      assert.ok(s.flipVelocity * flip > 0, 'opposite input must not instantly reverse the launch');
+      fly(s, 0.5, { spin, flip: -flip }, hz);
+      assert.ok((velocity - s.flipVelocity) * flip > 1,
+        'half a second of late up/down input should noticeably slow the rotation');
+      fly(s, 1, { spin, flip: -flip }, hz);
+      assert.ok(s.flipVelocity * flip < 0, 'sustained correction can redirect the cork');
+      assert.equal(s.spinVelocity, spin * (4.7 * 1.15));
     }
   }
 });

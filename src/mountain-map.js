@@ -1,4 +1,5 @@
 import { groundHeight, gradientAt, SUMMIT_HEIGHT, BASE_HEIGHT, RADIUS, areaAt, AREAS } from './blackridge.js';
+import { getLiftLayout } from './lift-layout.js';
 export function createMountainMap(canvas) {
   const size=320,extent=RADIUS*1.18;
   canvas.width=canvas.height=size;
@@ -12,20 +13,28 @@ export function createMountainMap(canvas) {
     const shade=Math.max(.35,Math.min(1,(1-g.x*.4-g.s*.3)/Math.hypot(1,g.x,g.s)));
     const contour=h>100&&h%100<10?.68:1;
     const i=(y*size+x)*4;
-    image.data[i]=(35+altitude*139)*(.62+shade*.38)*contour;
-    image.data[i+1]=(66+altitude*135)*(.62+shade*.38)*contour;
-    image.data[i+2]=(80+altitude*137)*(.62+shade*.38)*contour;
+    image.data[i]=(38+altitude*139)*(.62+shade*.38)*contour;
+    image.data[i+1]=(34+altitude*135)*(.62+shade*.38)*contour;
+    image.data[i+2]=(37+altitude*137)*(.62+shade*.38)*contour;
     image.data[i+3]=245;
   }
   bg.putImageData(image,0,0);
-  bg.font='bold 13px Arial';bg.textAlign='center';bg.fillStyle='#f1f4e8';
+  const lift=getLiftLayout();
+  bg.strokeStyle='#f4b7bd';bg.lineWidth=3;bg.beginPath();
+  bg.moveTo((lift.top.x/extent+1)*size/2,(1-lift.top.s/extent)*size/2);
+  bg.lineTo((lift.bottom.x/extent+1)*size/2,(1-lift.bottom.s/extent)*size/2);bg.stroke();
+  for(const station of [lift.top,lift.bottom]) {
+    bg.beginPath();bg.arc((station.x/extent+1)*size/2,(1-station.s/extent)*size/2,4,0,Math.PI*2);
+    bg.fillStyle='#f4b7bd';bg.fill();
+  }
+  bg.font='bold 13px Arial';bg.textAlign='center';bg.fillStyle='#f5eff2';
   bg.fillText('N',size/2,17);bg.fillText('S',size/2,size-8);bg.fillText('W',12,size/2);bg.fillText('E',size-12,size/2);
   bg.beginPath();bg.arc(size/2,size/2,3,0,Math.PI*2);bg.fill();
   return {update(state){
     ctx.clearRect(0,0,size,size);ctx.drawImage(background,0,0);
     const x=(state.x/extent+1)*size/2,y=(1-state.s/extent)*size/2;
     ctx.save();ctx.translate(x,y);ctx.rotate(-state.heading);
-    ctx.fillStyle='#e5ff64';ctx.strokeStyle='#102533';ctx.lineWidth=2;
+    ctx.fillStyle='#ff4b55';ctx.strokeStyle='#100d10';ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(0,-9);ctx.lineTo(6,7);ctx.lineTo(0,4);ctx.lineTo(-6,7);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
     canvas.setAttribute('aria-label',`Mountain map: ${areaAt(state.x,state.s).name}, ${Math.round(state.y-BASE_HEIGHT)} metres above base`);
   }};

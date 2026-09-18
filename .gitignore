@@ -8,6 +8,19 @@ coverage/
 playwright-report/
 test-results/
 
+# Local validation snapshots and reports
+/.*-baseline/
+/.openai/*-baseline-*/
+/*-results.txt
+/log-rail-validation*.txt
+/terrain-baseline-*.txt
+/terrain-final-suite.txt
+/terrain-focused-final.txt
+/terrain-review-summary.md
+
+# Local deployment tools
+/.sites-bin/
+
 # Local browser capture profiles and scratch archive
 /.capture-profile*/
 /_probe.tgz

@@ -1,5 +1,9 @@
 // Blackridge is a continuous, authored mountain. Coordinates are x/east and
 // s/north (Three.js z = -s); s is a position, never course progress.
+import { liftRoute } from './lift-route.js';
+import { createLogLayout } from './log-placement.js';
+import { createParkLine, parkWeight, parkReserved } from './park-line.js';
+import { blocksNaturalTakeoff } from './kicker-placement.js';
 export const OPEN_WORLD = true;
 export const RADIUS = 2100;
 export const SUMMIT_HEIGHT = 1960;
@@ -95,7 +99,8 @@ const linkingLips = [
   ['SUN TRANSFER', 155, 1070, 34, 48, 88, 50, 22],
   ['SOUTH SHELF', 213, 1115, 36, 48, 90, 58, 23],
   ['WEST SHELF', 277, 1090, 34, 46, 95, 52, 22],
-  ['WIND TRANSFER', 345, 1150, 33, 48, 92, 48, 22],
+  // Broad approach leaves an exit between Crown Fall and Wind Gap.
+  ['WIND TRANSFER', 345, 1150, 18, 80, 92, 48, 22],
   ['LOW NORTH LIP', 11, 1460, 26, 42, 82, 38, 19],
   ['LOW GLACIER LIP', 66, 1550, 28, 44, 86, 40, 20],
   ['LOW SUN LIP', 110, 1675, 27, 44, 90, 36, 19],
@@ -132,6 +137,19 @@ for(let attempt=0;SMALL_LIPS.length<100 && attempt<30000;attempt++) {
 }
 if(SMALL_LIPS.length!==100)throw new Error('Blackridge needs space for all 100 small wind lips');
 FEATURES.push(...SMALL_LIPS);
+// Keep the signature cliffs, but lower their second ledges and bring the
+// landing snow up. Shorter catches free the lower faces for more ridge lines.
+// Tune after seeded placement to keep the existing small wind lips in place;
+// major remains the landmark classification even with a shallower catch.
+for (const f of FEATURES) if (f.major) {
+  f.height *= .58;
+  // Bell Tower sits on a rising watershed shoulder; its snow lip needs less
+  // added rise to keep the second takeoff reachable without a maximum-speed run.
+  if (f.name === 'BELL TOWER') f.height *= .8;
+  f.drop *= .5;
+  f.catchLength = 300;
+  f.recovery = Math.max(300, f.drop * 4);
+}
 // Broad, connected wind rolls cover the snowfields between isolated jumps.
 // Protect takeoff crests, not entire 800 m catch basins: that old exclusion
 // left kilometer-long stretches without anything to jump from.
@@ -153,17 +171,77 @@ for(let row=-15;row<=15;row++)for(let column=-15;column<=15;column++) {
     const {u,v}=featureCoordinates(f,x,s);
     return f.major && u>f.catchLength-40 && u<f.catchLength+f.recovery+100 && Math.abs(v)<f.width*1.8;
   });
-  // Keep the uphill center of a deep catch basin smooth enough to carry speed
-  // out; nearby shoulder rolls remain reachable with a short traverse.
-  if(FEATURES.some(f=>{
-    const {u,v}=featureCoordinates(f,x,s);
-    return f.major && u>f.catchLength-40 && u<f.catchLength+f.recovery+100 && Math.abs(v)<f.width*.9;
-  }))continue;
+  // The raised catches can carry mellow rolls through their centers as well
+  // as their shoulders. Longer approaches keep the recovery skiable.
   SNOWFIELD_LIPS.push({name:`SNOWFIELD ROLL ${SNOWFIELD_LIPS.length+1}`,index:FEATURES.length+SNOWFIELD_LIPS.length,
-    angle,x,s,dx,ds,width:65+lipRandom()*25,length:(24+lipRandom()*8)*(basinExit?1.5:1),height:(11+lipRandom()*5)*(basinExit?.3:1),
+    angle,x,s,dx,ds,width:65+lipRandom()*25,length:(24+lipRandom()*8)*(basinExit?1.5:1),height:(11+lipRandom()*5)*(basinExit?.65:1),
     drop:(3+lipRandom()*4)*(basinExit?.5:1),kick:5+lipRandom()*3,catchLength:30,recovery:65,major:false,snowfield:true});
 }
 FEATURES.push(...SNOWFIELD_LIPS);
+// Compact side hits fill the gaps without adding more deep catch basins.
+export const KICKERS = [];
+for(let face=0;face<12;face++)for(let band=0;band<9;band++) {
+  const angle=radians(face*30+(band%2 ? 8 : -8));
+  const radius=300+band*170,dx=Math.sin(angle),ds=Math.cos(angle);
+  const x=dx*radius,s=ds*radius;
+  if(FEATURES.some(f=>{
+    const {u,v}=featureCoordinates(f,x,s);
+    return u>-f.length-22 && u<45 && Math.abs(v)<f.width+20;
+  }))continue;
+  KICKERS.push({name:`SIDE KICKER ${KICKERS.length+1}`,x,s,dx,ds,angle,
+    height:5.5,length:19,width:20,drop:0,kick:8,catchLength:18,recovery:28,small:true,major:false});
+}
+// A frequent, straight approach under the wires makes cable transfers easy to
+// line up. Leave out the worst sites where the next terrain rise swallowed the
+// landing immediately; the remaining lips still cover the full lift corridor.
+const lift=liftRoute(true,LENGTH);
+// Keep authored snow jumps in place when the summit terminal moves downhill.
+const liftSnowOrigin={x:lift.dx*24,s:lift.ds*24};
+export const LIFT_KICKERS = [];
+const liftKickerPositions=[55,235,325,415,505,695,795,895,995,1195,1295,1395,1495,1595,1695,1795,1895];
+for(const u of liftKickerPositions) {
+  const lateral=u===liftKickerPositions[0] ? 2.5 : 0;
+  LIFT_KICKERS.push({name:`LIFT KICKER ${LIFT_KICKERS.length+1}`,
+    x:liftSnowOrigin.x+lift.dx*u+lift.ds*lateral,
+    s:liftSnowOrigin.s+lift.ds*u-lift.dx*lateral,dx:lift.dx,ds:lift.ds,
+    angle:Math.atan2(lift.dx,lift.ds),height:7,length:u<90 ? 20 : 24,width:16,drop:0,
+    kick:11,catchLength:16,recovery:24,small:true,major:false,lift:true});
+}
+// A few larger side hits leave open snow between the cable approaches.
+export const SUMMIT_KICKERS = [];
+for(let u=130;u<580;u+=200)for(const lateral of [-28,28]) {
+  const along=u+(lateral<0 ? 18 : 0);
+  SUMMIT_KICKERS.push({name:`SUMMIT SIDE KICKER ${SUMMIT_KICKERS.length+1}`,
+    x:liftSnowOrigin.x+lift.dx*along+lift.ds*lateral,
+    s:liftSnowOrigin.s+lift.ds*along-lift.dx*lateral,dx:lift.dx,ds:lift.ds,
+    angle:Math.atan2(lift.dx,lift.ds),height:6,length:22,width:15,drop:0,
+    kick:10,catchLength:12,recovery:18,small:true,major:false});
+}
+// Keep the existing north-face snow jumps when relocating the lift. Removing
+// those landforms would also change unrelated ski lines across the mountain.
+const northLength=Math.hypot(43,LENGTH*1.08-12);
+const northDx=-43/northLength,northDs=(LENGTH*1.08-12)/northLength;
+for(const f of [...SUMMIT_KICKERS,...LIFT_KICKERS]) {
+  const rx=f.x-liftSnowOrigin.x,rs=f.s-liftSnowOrigin.s;
+  const u=rx*lift.dx+rs*lift.ds,v=rx*lift.ds-rs*lift.dx;
+  KICKERS.push({...f,name:`NORTH FACE ${f.name}`,lift:false,
+    x:-22+northDx*u+northDs*v,s:12+northDs*u-northDx*v,
+    dx:northDx,ds:northDs,angle:Math.atan2(northDx,northDs)});
+}
+KICKERS.push(...SUMMIT_KICKERS);
+KICKERS.push(...LIFT_KICKERS);
+// Enlarge only the smallest discrete hits. Keep candidate generation stable so
+// removing a conflict does not shuffle unrelated features around the mountain.
+for(const f of [...SMALL_LIPS,...KICKERS])if(f.height<7) {
+  f.height*=1.25;f.length*=1.25;f.width*=1.25;f.enlarged=true;
+}
+const naturalTakeoffs=[...FEATURES,...KICKERS].filter(f=>!f.enlarged);
+const blocked=new Set([...SMALL_LIPS,...KICKERS].filter(k=>k.enlarged && naturalTakeoffs.some(f=>blocksNaturalTakeoff(k,f))));
+for(const list of [FEATURES,SMALL_LIPS,KICKERS,LIFT_KICKERS,SUMMIT_KICKERS]) {
+  for(let i=list.length-1;i>=0;i--)if(blocked.has(list[i]))list.splice(i,1);
+}
+FEATURES.push(...KICKERS);
+FEATURES.forEach((f,index)=>f.index=index);
 // No ordered jump list: navigation never points to a mandatory next feature.
 export const JUMPS = [];
 export function radiusAt(angle) {
@@ -173,7 +251,8 @@ export function mountainFraction(x, s) {
   return Math.hypot(x, s) / radiusAt(Math.atan2(x, s));
 }
 export function areaAt(x, s) {
-  if (Math.hypot(x, s) < 110) return { name: 'THE SUMMIT', description: 'Choose any face / ↑ to push off' };
+  if (parkWeight(x,s) > .9) return { name: 'EAST FACE PARK LINE', description: 'Groomed snow / big jumps / handrails' };
+  if (Math.hypot(x, s) < 110) return { name: 'THE SUMMIT', description: 'Choose any face / Ctrl to skate' };
   const angle = (Math.atan2(x, s) * 180 / Math.PI + 360) % 360;
   return AREAS[Math.floor((angle + 30) / 60) % 6];
 }
@@ -196,57 +275,133 @@ for (const f of FEATURES) {
     }
 }
 const nearby = (x,s) => bins.get(`${Math.floor(x / BIN)},${Math.floor(s / BIN)}`) || [];
-function terrainHeight(x, s) {
+function naturalTerrainHeight(x, s) {
   const r = Math.hypot(x,s), a = Math.atan2(x,s), q = mountainFraction(x,s);
   if (q >= 1.13) return BASE_HEIGHT - 18;
-  // A tiny rounded tip retains stationary heading selection, then immediately
-  // falls away on every face instead of starting on a broad, shallow dome.
+  // The mountain profile outside the compact summit platform.
   const capR = Math.sqrt(r*r + 2*2) - 2;
   const t = clamp(capR / (radiusAt(a) - 2));
   let h = BASE_HEIGHT + (SUMMIT_HEIGHT - BASE_HEIGHT) * Math.pow(1-t, 1.16);
   const envelope = smooth(r / 430) * (1-smooth((q-.72)/.31));
+  const liftAngle = Math.atan2(lift.dx,lift.ds);
+  const acrossLift = Math.abs(Math.atan2(Math.sin(a-liftAngle),Math.cos(a-liftAngle)));
+  const liftShoulder = 1-smooth((acrossLift-radians(4))/radians(24));
   // Meandering watersheds, broad connected bowls and offset secondary ridges.
-  const ridges = 92 * Math.sin(a*5 + r*.00085) + 48 * Math.cos(a*3 - r*.0019);
+  const watershed = 92 * Math.sin(a*5 + r*.00085) + 48 * Math.cos(a*3 - r*.0019);
+  // Break the long watersheds into staggered 400–800 m shoulders, with
+  // shorter secondary spines between them. Fade in below the first summit
+  // lips so their familiar approach and takeoff stay intact.
+  const ridgeSections = .52 + .38 * Math.cos(r*.008 + a*2);
+  const secondary = 34 * Math.sin(a*9-r*.0045) * (.5+.5*Math.cos(r*.008+a*3));
+  const ridgeBlend = smooth((r-260)/220)*smooth((acrossLift-radians(28))/radians(18));
+  const ridges = watershed*(1-ridgeBlend) + (watershed*ridgeSections+secondary)*ridgeBlend;
   const folds = 24 * Math.sin(x*.007+s*.002) * Math.sin(s*.005-x*.0018);
   const detail = 4 * Math.sin(x*.028+s*.013) * Math.sin(s*.019-x*.012);
   h += (ridges + folds + detail) * envelope;
+  // Fill the broad hollow around the lift so traverses toward the neighboring
+  // ridges need less climbing. Feather both shoulders and the summit/base ends
+  // before adding lips, keeping their shapes on the raised snow surface.
+  const liftFill = smooth((r-240)/410) * (1-smooth((q-.55)/.45));
+  h += 130 * liftShoulder * liftFill;
+  let smallDetail = 0;
   for (const f of nearby(x,s)) {
     const {u,v} = featureCoordinates(f,x,s);
     if(u < -f.length || u > f.catchLength+f.recovery || Math.abs(v) > f.width*1.8) continue;
     const shoulder = smooth((f.width-Math.abs(v))/(f.width*.42));
+    let offset;
     if(u <= 0) {
       const t = clamp((u+f.length)/f.length);
-      h += f.height*t*t*shoulder;
+      offset = f.height*t*t*shoulder;
     } else {
       const basinWidth = f.width * (1 + .65 * smooth(u/150));
       const basin = smooth((basinWidth-Math.abs(v))/(basinWidth*.4));
-      h += f.height*(1-smooth(u/10))*shoulder;
-      h -= f.drop*smooth(u/14)*(1-smooth((u-f.catchLength)/f.recovery))*basin;
+      offset = f.height*(1-smooth(u/10))*shoulder;
+      // These catches lie under the lift. Fill most of their deep bowls as well
+      // as the broad fold; otherwise their side walls still block traverses.
+      const liftCatch = f.name === 'HANG TIME' || f.name === 'GLACIER DRIFT';
+      const drop = f.drop * (liftCatch ? .25 : 1);
+      offset -= drop*smooth(u/14)*(1-smooth((u-f.catchLength)/f.recovery))*basin;
     }
+    if (f.small || f.snowfield) smallDetail += offset;
+    else h += offset;
   }
+  // Deep overlapping catches must drain onto the apron, never dip below it
+  // and then climb back to base elevation. This gently sloped floor also
+  // leaves a gravity-driven exit when arriving at the bottom without speed.
+  h = Math.max(h, BASE_HEIGHT + (1-q)*180);
+  h += smallDetail;
   // The runout becomes one continuous low apron around the entire mountain.
-  return h*(1-smooth((q-.92)/.18)) + (BASE_HEIGHT-18)*smooth((q-.92)/.18);
+  const slopeHeight=h*(1-smooth((q-.92)/.18)) + (BASE_HEIGHT-18)*smooth((q-.92)/.18);
+  // A 3.5 m circular pad leaves just enough room to turn the 2.8 m skis.
+  const summitBlend=smooth((r-1.75)/4.25);
+  return SUMMIT_HEIGHT*(1-summitBlend)+slopeHeight*summitBlend;
 }
-// Physics and the nearest render tiles use the very same two-metre triangles.
-// Sampling an analytic surface beneath a coarser render mesh can bury the skier.
+const summitTerminalHeight=naturalTerrainHeight(lift.top.x,lift.top.s);
+function terrainHeight(x,s) {
+  const native=naturalTerrainHeight(x,s);
+  const ox=x-lift.top.x,os=s-lift.top.s;
+  const along=ox*lift.dx+os*lift.ds,across=ox*lift.ds-os*lift.dx;
+  // The unloading deck is part of the terrain, so skis, landings and the
+  // camera all use its top. Leave a snow margin around its rotated footprint
+  // for the two-metre triangles, then blend into the downhill approach/exit.
+  const edge=Math.max(Math.abs(along)-9,Math.abs(across)-9);
+  const weight=1-smooth(edge/6);
+  return native*(1-weight)+summitTerminalHeight*weight;
+}
+export const PARK_LINE = createParkLine(terrainHeight, FEATURES.length);
+FEATURES.push(...PARK_LINE.takeoffs);
+// Physics and nearby render tiles share two-metre triangles, refined to 25 cm
+// around the tiny summit. A coarser render mesh here would bury the skier.
 export const SURFACE_GRID = 2;
+export const SUMMIT_SURFACE_GRID = .25;
+export const SUMMIT_DETAIL_EXTENT = 8;
 const heightCache = new Map();
+const logRidgeBins = new Map();
+// Broad shoulders and tapered ends make the timber supports part of the same
+// two-metre snow surface used by rendering, skis, tracks and the camera.
+function ridgeHeight(x,s,base) {
+  let height=base;
+  for(const log of logRidgeBins.get(`${Math.floor(x/64)},${Math.floor(s/64)}`) || []) {
+    const ox=x-log.x,os=s-log.s,u=ox*log.dx+os*log.ds,v=ox*log.ds-os*log.dx;
+    // Leave a little grid-sampling margin under sideways ski tips as trunks
+    // settle onto the reshaped ridges; keep the same seven-metre outer blend.
+    const across=1-smooth((Math.abs(v)-2.2)/4.8);
+    const along=smooth((u+16)/16)*(1-smooth((u-log.length)/12));
+    const exposed=.08+.52*smooth(u/9);
+    const top=log.y+log.grade*u-exposed;
+    height=Math.max(height,base+Math.max(0,top-base)*across*along);
+  }
+  return height;
+}
 function vertexHeight(ix, iz) {
-  const key = (ix + 8192) * 16384 + iz + 8192;
+  const key = (ix*8 + 65536) * 131072 + iz*8 + 65536;
   let value = heightCache.get(key);
   if (value === undefined) {
-    value = terrainHeight(ix * SURFACE_GRID, iz * SURFACE_GRID);
+    const x=ix*SURFACE_GRID,s=iz*SURFACE_GRID;
+    // Match the coarse boundary exactly where the little summit patch joins it.
+    if(Math.abs(x)===SUMMIT_DETAIL_EXTENT && !Number.isInteger(iz)) {
+      const lower=Math.floor(iz),t=iz-lower;
+      return vertexHeight(ix,lower)*(1-t)+vertexHeight(ix,lower+1)*t;
+    }
+    if(Math.abs(s)===SUMMIT_DETAIL_EXTENT && !Number.isInteger(ix)) {
+      const lower=Math.floor(ix),t=ix-lower;
+      return vertexHeight(lower,iz)*(1-t)+vertexHeight(lower+1,iz)*t;
+    }
+    const native = ridgeHeight(x,s,terrainHeight(x,s)), weight = parkWeight(x,s);
+    value = weight === 0 ? native : native * (1 - weight) + PARK_LINE.surface(x,s) * weight;
     if (heightCache.size > 900000) heightCache.clear();
     heightCache.set(key, value);
   }
   return value;
 }
 export function groundHeight(x, s) {
-  const gx=x/SURFACE_GRID,gz=s/SURFACE_GRID,ix=Math.floor(gx),iz=Math.floor(gz);
-  const u=gx-ix,v=gz-iz;
-  const b=vertexHeight(ix+1,iz),c=vertexHeight(ix,iz+1);
+  const grid=Math.max(Math.abs(x),Math.abs(s))<SUMMIT_DETAIL_EXTENT ? SUMMIT_SURFACE_GRID : SURFACE_GRID;
+  const gx=x/grid,gz=s/grid,step=grid/SURFACE_GRID;
+  const ix=Math.floor(gx)*step,iz=Math.floor(gz)*step;
+  const u=gx-Math.floor(gx),v=gz-Math.floor(gz);
+  const b=vertexHeight(ix+step,iz),c=vertexHeight(ix,iz+step);
   if(u+v<=1) return vertexHeight(ix,iz)*(1-u-v)+b*u+c*v;
-  return vertexHeight(ix+1,iz+1)*(u+v-1)+b*(1-v)+c*(1-u);
+  return vertexHeight(ix+step,iz+step)*(u+v-1)+b*(1-v)+c*(1-u);
 }
 export const sceneryHeight = groundHeight;
 export const baseHeight = s => groundHeight(0,s);
@@ -255,7 +410,12 @@ export function gradientAt(x,s,epsilon=1) {
     s:(groundHeight(x,s+epsilon)-groundHeight(x,s-epsilon))/(epsilon*2) };
 }
 export function rampAt(x,s) {
-  return nearby(x,s).find(f => { const {u,v}=featureCoordinates(f,x,s); return u >= -f.length && u <= 12 && Math.abs(v) < f.width*.9; });
+  if (parkWeight(x,s) > .5) {
+    return PARK_LINE.takeoffs.find(f => x >= f.x - f.length && x <= f.x + 12 && Math.abs(s) < f.width * .9);
+  }
+  const candidates=nearby(x,s);
+  const onRamp=f=>{ const {u,v}=featureCoordinates(f,x,s); return u >= -f.length && u <= 12 && Math.abs(v) < f.width*.9; };
+  return candidates.find(f=>f.lift && onRamp(f)) || candidates.find(onRamp);
 }
 export function atBase(x,s,y) { return mountainFraction(x,s) >= .97 && y < BASE_HEIGHT+95; }
 export function getSpawn() { return { x:0, s:0, heading:0 }; }
@@ -265,15 +425,37 @@ export function getSpawn() { return { x:0, s:0, heading:0 }; }
 let treeSeed=271828;
 const rand=()=>{treeSeed=(treeSeed*1664525+1013904223)>>>0;return treeSeed/4294967296;};
 export const TREES=[];
-for(let i=0;i<1800 && TREES.length<260;i++) {
-  const a=rand()*Math.PI*2,r=radiusAt(a)*(.66+rand()*.27);
+export const TREE_LINE = BASE_HEIGHT + (SUMMIT_HEIGHT - BASE_HEIGHT) * .5;
+// Small rollers cover nearly the entire mountain. Only authored jump corridors
+// reserve tree-free space; using every roller here used to reject every tree.
+for(let i=0;i<12000 && TREES.length<150;i++) {
+  const island=Math.floor(rand()*24),a=island/24*Math.PI*2+(rand()-.5)*.12;
+  const r=radiusAt(a)*(.53+(island%4)*.085+(rand()-.5)*.1);
   const x=Math.sin(a)*r,s=Math.cos(a)*r,y=groundHeight(x,s);
+  if (parkReserved(x,s)) continue;
   const g=gradientAt(x,s);
-  if(y>500 || y<120 || Math.hypot(g.x,g.s)>.85)continue;
-  if(nearby(x,s).some(f=>{const {u,v}=featureCoordinates(f,x,s);return u > -f.length-35 && u < f.catchLength+260 && Math.abs(v)<f.width*1.8+25;}))continue;
+  if(y>TREE_LINE-12 || y<120 || Math.hypot(g.x,g.s)>1.05)continue;
+  if(nearby(x,s).some(f=>{if(f.small || f.snowfield)return false;const {u,v}=featureCoordinates(f,x,s);return u > -f.length-25 && u < f.catchLength+75 && Math.abs(v)<f.width+18;}))continue;
+  if(TREES.some(t=>Math.hypot(t.x-x,t.s-s)<17))continue;
   const scale=.7+rand()*.75;
   TREES.push({x,s,y,scale,radius:.55*scale});
 }
 export function treeCollision(x,s) {
   return TREES.find(t=>Math.abs(x-t.x)<t.radius+.4 && Math.abs(s-t.s)<t.radius+.4 && Math.hypot(x-t.x,s-t.s)<t.radius+.4);
 }
+
+// Place against unmodified terrain, then install the low snow supports once.
+// Keeping this initialization here gives every terrain consumer the same map.
+export const LOGS=createLogLayout({groundHeight,gradientAt,FEATURES,TREES,radiusAt,lift,reserved:parkReserved});
+export const HANDRAILS = PARK_LINE.rails.map((rail, index) => ({ ...rail, id: LOGS.length + index }));
+for(const log of LOGS.filter(log=>log.kind==='fallen')) {
+  const x1=log.x-log.dx*16,s1=log.s-log.ds*16;
+  const x2=log.x+log.dx*(log.length+12),s2=log.s+log.ds*(log.length+12);
+  for(let ix=Math.floor((Math.min(x1,x2)-7)/64);ix<=Math.floor((Math.max(x1,x2)+7)/64);ix++)
+    for(let iz=Math.floor((Math.min(s1,s2)-7)/64);iz<=Math.floor((Math.max(s1,s2)+7)/64);iz++) {
+      const key=`${ix},${iz}`;
+      if(!logRidgeBins.has(key))logRidgeBins.set(key,[]);
+      logRidgeBins.get(key).push(log);
+    }
+}
+heightCache.clear();

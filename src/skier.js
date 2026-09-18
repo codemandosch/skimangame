@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { groundHeight, COURSE } from "./course.js";
-import { groundFrame } from './ground-frame.js';
+import { riderFrame } from './rider-frame.js';
+import { landingSink } from './landing-impact.js';
+import { riderRotation } from './aerial-rotation.js';
 import { createRiderPose, updateRiderPose } from "./rider-pose.js";
 import { createRiderMaterials } from "./rider-materials.js";
 import { loadSkinnedRider } from "./skinned-rider.js";
@@ -337,18 +339,11 @@ export function createSkier(scene) {
       previousTime = s.time;
       updateRiderPose(pose, s, s.paused || s.finished ? 0 : dt);
       root.position.set(s.x, s.y + 0.03, -s.s);
-      const dx = COURSE.openWorld ? -Math.sin(s.heading) : 0;
-      const ds = COURSE.openWorld ? Math.cos(s.heading) : 1;
-      const tilt = Math.atan((groundHeight(s.x+dx, s.s+ds)-groundHeight(s.x-dx,s.s-ds))/2);
-      const frame = COURSE.openWorld && !s.airborne ? groundFrame(s.x,s.s,s.heading,groundHeight) : null;
-      if(frame) root.position.y += frame.clearance + .06;
-      heading.rotation.set(s.airborne ? -0.1 : (frame?.pitch ?? tilt), s.heading, frame?.roll ?? 0, "YXZ");
-      spin.rotation.set(
-        -s.flip,
-        -(s.stanceYaw + s.spin + s.yawOffset),
-        0,
-        "YXZ",
-      );
+      const frame = riderFrame(s);
+      if(COURSE.openWorld && !s.airborne && !s.railing) root.position.y += frame.clearance + .06;
+      root.position.y -= landingSink(s);
+      heading.rotation.set(frame.pitch, s.heading, frame.roll, "YXZ");
+      riderRotation(s, spin.quaternion);
       torso.position.copy(pose.hips);
       torso.quaternion.copy(pose.torsoQuaternion);
       head.rotation.y = -pose.lean * 0.22;
@@ -370,7 +365,7 @@ export function createSkier(scene) {
         arms[i].glove.quaternion
           .copy(ski.quaternion)
           .slerp(arm.gripQuaternion, arm.grip);
-        arms[i].pole.rotation.x = -0.6 - arm.grip * 0.8;
+        arms[i].pole.rotation.x = arm.polePitch - arm.grip * 0.8;
       }
       if (skinnedRig) {
         const contacts = skinnedRig.update(pose, s);

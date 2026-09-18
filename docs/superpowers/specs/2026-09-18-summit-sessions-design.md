@@ -1,4 +1,4 @@
-# SKIMANGAME — skiing prototype
+# MAD STEEZ — skiing prototype
 
 Build a keyboard-first browser skiing game inspired by the arcade movement and alpine presentation of SSX On Tour. The game starts directly on a single downhill course with five jumps. No customization or menu navigation is needed. Original procedural artwork and branding keep all assets available in the repository.
 

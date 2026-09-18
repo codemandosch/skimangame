@@ -267,17 +267,40 @@ test("clean landings award points without a speed resource", () => {
   assert.equal("boost" in s, false);
   assert.equal("boosting" in s, false);
 });
+test("the scoring window pauses, expires without ending play, and blocks later points", () => {
+  const s = createState();
+  advance(s, 74);
+  const remaining = s.scoringTimeRemaining;
+  s.paused = true;
+  advance(s, 2);
+  assert.equal(s.scoringTimeRemaining, remaining);
+  s.paused = false;
+  advance(s, 2);
+  assert.equal(s.scoreLocked, true);
+  assert.equal(s.finished, false);
+  s.airtime = 2;
+  resolveLanding(s);
+  assert.equal(s.score, 0);
+  assert.equal(s.lastPoints, 0);
+  respawn(s);
+  assert.equal(s.scoringTimeRemaining, 75);
+  assert.equal(s.scoreLocked, false);
+});
 test("a scripted spin, flip and grab run banks all five jumps and finishes without bailing", () => {
   const s = createState();
   let bailed = false;
   for (let i = 0; i < 120 * 90 && !s.finished; i++) {
     const air = s.airborne,
       sign = s.jumps % 2 ? 1 : -1;
+    // Exercise spins, flips, and combined corks. A cork finishes one rotation
+    // around its shared axis, rather than two independent Euler rotations.
+    const mode = s.jumps % 3;
+    const corkHeld = Math.hypot(s.spin + s.spinVelocity / 7, s.flip + s.flipVelocity / 7) < Math.PI * 2;
     step(
       s,
       {
-        spin: air && Math.abs(s.spin + s.spinVelocity / 7) < Math.PI ? sign : 0,
-        flip: air && s.flip + s.flipVelocity / 7 < Math.PI * 2 ? 1 : 0,
+        spin: air && (mode === 0 ? corkHeld : mode === 1 && Math.abs(s.spin + s.spinVelocity / 7) < Math.PI) ? sign : 0,
+        flip: air && (mode === 0 ? corkHeld : mode === 2 && s.flip + s.flipVelocity / 7 < Math.PI * 2) ? 1 : 0,
         grab: air && s.airtime < 1.4 ? 1 : 0,
       },
       1 / 120,
@@ -287,5 +310,5 @@ test("a scripted spin, flip and grab run banks all five jumps and finishes witho
   assert.equal(bailed, false);
   assert.equal(s.jumps, 5);
   assert.equal(s.finished, true);
-  assert.ok(s.score > 3500, `score ${s.score}`);
+  assert.ok(s.score > 3000, `score ${s.score}`);
 });

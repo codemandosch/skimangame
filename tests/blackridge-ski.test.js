@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { Box3, Vector3 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { measureSkiYaw, straightenSkiGeometry } from "../src/blackridge-ski.js";
 
 async function readGlb() {
   const bytes = await readFile(
@@ -77,4 +78,20 @@ test("the shipped BLACKRIDGE ski keeps its game-ready mesh and textured material
     ),
     "ski material must include embedded base color and normal textures",
   );
+});
+
+test("the shipped BLACKRIDGE ski mesh straightens to a symmetric deck in game", async () => {
+  const scene = await readGlbScene();
+  let geometry;
+  scene.traverse((object) => { if (object.isMesh) geometry = object.geometry; });
+  // The export is baked a few degrees off axis; the loader must correct it.
+  const baked = measureSkiYaw(geometry);
+  assert.ok(Math.abs(baked.yaw) > 0.02, `expected a baked yaw to correct, got ${baked.yaw}`);
+  straightenSkiGeometry(geometry);
+  const fixed = measureSkiYaw(geometry);
+  assert.ok(Math.abs(fixed.yaw) < 1e-3, `residual yaw is ${fixed.yaw}`);
+  assert.ok(Math.abs(fixed.offset) < 1e-3, `residual offset is ${fixed.offset}`);
+  const size = new Box3().setFromObject(scene).getSize(new Vector3()).toArray();
+  assert.ok(size[0] < 0.12, `straightened ski width is ${size[0]}`);
+  assert.ok(size[2] > 2.75 && size[2] < 2.9, `ski length is ${size[2]}`);
 });

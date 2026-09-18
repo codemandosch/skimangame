@@ -7,26 +7,25 @@ function tick(s, seconds, input = {}) {
   for (let i = 0; i < Math.round(seconds * 120); i++) step(s, input, 1 / 120);
 }
 
-function launchFromRamp(s, flip = 0) {
-  const ramp = JUMPS[0];
-  s.s = ramp.lip - 0.05;
-  s.x = ramp.x;
-  s.y = groundHeight(s.x, s.s);
+function launchAloft(s, flip = 0) {
   s.charge = 1;
   step(s, { flip, pop: true }, 1 / 120);
+  // Rotation checks need sustained airtime, independent of course fixtures.
+  s.y += 1000;
 }
 
 test("takeoff flip momentum resists immediate opposite input in both directions", () => {
   for (const direction of [-1, 1]) {
     const s = createState();
-    launchFromRamp(s, direction);
+    launchAloft(s, direction);
     assert.ok(s.flipVelocity * direction > 4);
     tick(s, 0.3, { flip: -direction });
     assert.ok(s.flip * direction > 0.8);
     assert.ok(s.flipVelocity * direction > 2);
-    tick(s, 1.2, { flip: -direction });
+    // The faster launch needs longer to reverse with the same air control.
+    tick(s, 1.5, { flip: -direction });
     assert.ok(s.airborne);
-    assert.ok(s.flipVelocity * direction > 1, "stronger correction slows momentum without immediately reversing it");
+    assert.ok(s.flipVelocity * direction < 0, "sustained opposite input can reverse the flip after slowing its momentum");
   }
 });
 
@@ -54,7 +53,7 @@ test("early takeoff input is stronger than a flip started well into the jump", (
 
 test("releasing flip coasts smoothly to rest without seeking a level angle", () => {
   const s = createState();
-  launchFromRamp(s, 1);
+  launchAloft(s, 1);
   tick(s, 0.15, { flip: 1 });
   const angle = s.flip, velocity = s.flipVelocity;
   step(s, {}, 1 / 120);

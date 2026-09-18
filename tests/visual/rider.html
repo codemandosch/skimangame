@@ -1,7 +1,8 @@
 <!doctype html>
 <html>
   <head>
-    <title>SKIMANGAME rider pose checks</title>
+    <meta charset="utf-8">
+    <title>MAD STEEZ rider pose checks</title>
     <style>
       body {
         margin: 0;
@@ -39,12 +40,20 @@
       ><button data-pose="left">Carve left</button
       ><button data-pose="right">Carve right</button
       ><button data-pose="tuck">Tuck</button
+      ><button data-pose="skate">Skate + double pole</button
       ><button data-pose="charge">Charge</button
       ><button data-pose="takeoff">Takeoff</button
       ><button data-pose="air">Airborne</button
       ><button data-pose="landing">Landing</button
+      ><button data-pose="landing-hard">Hard landing</button
+      ><button data-pose="skid-left">Skid left</button
+      ><button data-pose="skid-right">Skid right</button
+      ><button data-pose="landing-replay">Replay landing + skid</button
       ><button data-pose="mute">Mute grab</button
       ><button data-pose="daffy">Daffy</button
+      ><button data-pose="hangout">Hang Out</button
+      ><button data-pose="hangout-backflip">Hang Out backflip</button
+      ><button data-pose="bow">Bow and Arrow</button
       ><button data-pose="japan">Japan grab</button
       ><button data-pose="octo">Octo grab</button
       ><button data-pose="blunt">Blunt grab</button
@@ -55,6 +64,14 @@
       <button data-angle="1.570796">Side</button>
       <button data-angle="0">Rear</button>
       <button id="sequence">Play transitions</button>
+      <button data-pose="back-left">↓ + ← Cork</button>
+      <button data-pose="back-right">↓ + → Cork</button>
+      <button data-pose="front-left">↑ + ← Cork</button>
+      <button data-pose="front-right">↑ + → Cork</button>
+      <button data-pose="backflip">Backflip</button>
+      <button data-pose="frontflip">Frontflip</button>
+      <button id="rotation-pause">Pause / play rotation</button>
+      <label>Rotation <input id="rotation-phase" type="range" min="0" max="1" step="0.01" value="0"></label>
     </nav>
     <div id="readout"></div>
     <script type="module" src="./rider-lab.js"></script>

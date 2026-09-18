@@ -89,6 +89,7 @@ export function createSkinnedRiderRig(model, space) {
           0.6 + pose.mute * 0.2 + (pose.tail + pose.blunt) * 0.9, -1.1);
         kneePole.lerp(pose.legs[i].kneePole, pose.daffy);
         kneePole.lerp(pose.legs[i].kneePole, pose.japan);
+        kneePole.lerp(pose.legs[i].kneePole, pose.bow);
         solve(legs[i], footTarget, kneePole);
         const toeDirection = rest[`${prefix}_ToeBase`].point.clone().sub(rest[footName].point);
         const footYaw = Math.atan2(toeDirection.x, -toeDirection.z);

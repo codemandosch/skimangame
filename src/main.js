@@ -2,18 +2,19 @@ import * as THREE from "three";
 import "./style.css";
 import { createState, step, respawn } from "./physics.js";
 import { keyboardInput, releaseKey } from "./controls.js";
+import { prepareRun, prepareParkRun, startRun } from './run-start.js';
 import { createWorld } from "./world.js";
 import { createSkier } from "./skier.js";
 import { createEffects, createAudio } from "./effects.js";
 import { createRadio } from "./radio.js";
 import { mountainCameraTargets, constrainMountainCamera } from './mountain-camera.js';
-import { createMountainMap } from './mountain-map.js';
-import { areaAt, SUMMIT_HEIGHT, BASE_HEIGHT } from './blackridge.js';
-import { JUMPS, LENGTH, COURSE, COURSES, selectCourse, groundHeight, baseHeight } from "./course.js";
+import { COURSE, selectCourse, groundHeight } from "./course.js";
+import { formatScoringTime } from './scoring-window.js';
+import { createLeaderboardFlow } from './leaderboard-client.js';
 
-selectCourse(new URLSearchParams(location.search).get('map') || 'blackridge');
 
 const $ = (id) => document.getElementById(id);
+selectCourse(new URLSearchParams(location.search).get('map'));
 const radio = createRadio($('radio-audio'), status => {
   const active = status === 'LIVE' || status === 'CONNECTING';
   $('radio-status').textContent = status;
@@ -25,32 +26,19 @@ $('radio-toggle').addEventListener('click', () => radio.toggle());
 $('radio-volume').addEventListener('input', event => {
   $('radio-audio').volume = Number(event.target.value) / 100;
 });
-const bestKey = COURSE.id === 'bluebird' ? 'skimangame-best' : `skimangame-best-${COURSE.id}-open`;
-const picker = $('map-select');
-for (const map of Object.values(COURSES)) {
-  const option = document.createElement('option');
-  option.value = map.id;
-  option.textContent = map.openWorld ? `${map.name} / OPEN MOUNTAIN` : `${map.name} / ${map.JUMPS.length} JUMPS`;
-  picker.append(option);
-}
-picker.value = COURSE.id;
-picker.addEventListener('change', () => {
-  const url = new URL(location.href);
-  url.searchParams.set('map', picker.value);
-  location.assign(url);
-});
+const bestKey = 'skimangame-best-blackridge-open';
+const leaderboardFlow = createLeaderboardFlow();
+let finishGeneration = 0;
 document.querySelector('.location').textContent = `${COURSE.region} / ${COURSE.name}`;
-document.querySelector('.run-info h1').innerHTML = COURSE.natural ? 'THE EDGE.<br /><em>AND BEYOND.</em>' : 'DROP IN.<br /><em>STAND OUT.</em>';
-document.querySelector('.run-info p').textContent = COURSE.openWorld ? 'One summit. Every direction. Find your own way down.' : '1,180 m of freedom. Five chances to fly.';
-document.querySelector('.run-tag').textContent = COURSE.openWorld ? '← → CHOOSE YOUR FACE · ↑ PUSH OFF' : `${COURSE.style} / ${JUMPS.length} JUMPS`;
-document.querySelector('.course-caption').firstElementChild.innerHTML = `SUMMIT <b>${COURSE.summit.toLocaleString()} m</b>`;
-document.querySelector('.course-caption').lastElementChild.innerHTML = `BASE <b>${Math.round(COURSE.summit + (COURSE.openWorld ? BASE_HEIGHT-SUMMIT_HEIGHT : baseHeight(LENGTH)-baseHeight(0))).toLocaleString()} m</b>`;
 document.body.classList.toggle('open-mountain', !!COURSE.openWorld);
-$('mountain-nav').classList.toggle('hidden', !COURSE.openWorld);
-const mountainMap = COURSE.openWorld ? createMountainMap($('mountain-map')) : null;
 const state = createState();
+prepareRun(state);
 const keys = new Set();
+let startSpaceHeld = false;
+let parkStart = false;
+let pendingRailTurn = 0;
 let pendingPop = false,
+  pendingSkate = false,
   accumulator = 0,
   previousTime = 0,
   lastUi = 0,
@@ -59,8 +47,7 @@ let best = 0;
 try {
   best =
     Number(
-      localStorage.getItem(bestKey) ??
-        (COURSE.id === 'bluebird' ? localStorage.getItem("summit-sessions-best") : 0),
+      localStorage.getItem(bestKey),
     ) || 0;
 } catch {}
 $("best").textContent = best.toLocaleString();
@@ -96,34 +83,42 @@ const world = createWorld(scene),
 const desiredCamera = new THREE.Vector3(),
   look = new THREE.Vector3(),
   desiredLook = new THREE.Vector3();
-const markerEls = JUMPS.map((j) => {
-  const el = document.createElement("i");
-  el.style.left = `${(j.lip / LENGTH) * 100}%`;
-  $("jump-markers").append(el);
-  return el;
-});
-
 function input() {
-  return keyboardInput(keys, pendingPop);
+  const current=keyboardInput(keys, pendingPop);
+  return {...current,skate:current.skate || pendingSkate,railTurn:pendingRailTurn};
 }
 function reset() {
+  finishGeneration += 1;
+  leaderboardFlow.reset();
   respawn(state);
+  (parkStart ? prepareParkRun : prepareRun)(state);
+  startSpaceHeld = false;
   keys.clear();
   pendingPop = false;
+  pendingSkate = false;
+  pendingRailTurn=0;
   effects.reset();
   accumulator = 0;
   finishShown = false;
   $("finish-panel").classList.add("hidden");
+  renderLeaderboard();
   $("pause-panel").classList.add("hidden");
-  document.querySelector(".run-info").classList.remove("riding");
   snapCamera();
   updateUI();
 }
 function pause(value = !state.paused) {
-  if (state.finished) return;
+  if (state.awaitingStart || state.finished) {
+    keys.clear();
+    pendingPop=false;
+    pendingSkate=false;
+    return;
+  }
   state.paused = value;
+  startSpaceHeld = false;
   keys.clear();
   pendingPop = false;
+  pendingSkate = false;
+  pendingRailTurn=0;
   accumulator = 0;
   $("pause-panel").classList.toggle("hidden", !value);
   if (value) $("resume").focus();
@@ -142,6 +137,17 @@ async function toggleSound() {
     $("sound-status").textContent = "UNAVAILABLE";
   }
 }
+function startOrResume() {
+  if (state.awaitingStart) {
+    keys.clear();
+    pendingPop = false;
+    startRun(state);
+    accumulator = 0;
+    updateUI();
+  } else if (state.paused) {
+    pause(false);
+  }
+}
 const controlled = new Set([
   "ArrowUp",
   "ArrowDown",
@@ -152,29 +158,61 @@ const controlled = new Set([
   "KeyK",
   "KeyL",
   "Space",
+  "Backspace",
+  "ControlLeft",
+  "ControlRight",
   "KeyW",
   "KeyQ",
   "KeyE",
   "KeyA",
   "KeyS",
   "KeyD",
+  "KeyR",
+  "KeyF",
 ]);
 window.addEventListener("keydown", (e) => {
   if (e.target instanceof HTMLElement && e.target.closest('select, input, textarea, #radio-player')) return;
   if (controlled.has(e.code)) e.preventDefault();
+  if (e.code === 'Backspace') {
+    if (!e.repeat) reset();
+    return;
+  }
+  // Consume the entire start/resume press, including repeat and release.
+  if (e.code === 'Space' && startSpaceHeld) return;
+  if (e.code === 'Space' && state.paused) {
+    if (!e.repeat) {
+      startOrResume();
+      startSpaceHeld = true;
+    }
+    return;
+  }
+  if (state.awaitingStart) {
+    // Keep a quick Ctrl tap until the next simulation tick consumes the push.
+    if (e.code==='ControlLeft' || e.code==='ControlRight') pendingSkate=true;
+    if (['ArrowLeft','ArrowRight','KeyJ','KeyL','ControlLeft','ControlRight'].includes(e.code)) keys.add(e.code);
+    return;
+  }
   if (!e.repeat) {
+    if(state.railing && !state.paused && !state.finished) {
+      if(e.code==='ArrowLeft' || e.code==='KeyJ')pendingRailTurn=-1;
+      if(e.code==='ArrowRight' || e.code==='KeyL')pendingRailTurn=1;
+    }
     if (e.code === "Escape" || e.code === "KeyP") pause();
-    if (e.code === "KeyR") reset();
     if (e.code === "KeyM") toggleSound();
   }
   if (!state.paused && !state.finished) keys.add(e.code);
 });
 window.addEventListener("keyup", (e) => {
+  if (e.code === 'Space' && startSpaceHeld) {
+    startSpaceHeld = false;
+    keys.delete('Space');
+    return;
+  }
   if (e.target instanceof HTMLElement && e.target.closest('select, input, textarea, #radio-player')) {
     keys.delete(e.code);
     return;
   }
-  if (releaseKey(keys, e.code) && !state.paused && !state.finished && !state.airborne)
+  if (releaseKey(keys, e.code) && !state.awaitingStart && !state.paused && !state.finished && !state.airborne)
     pendingPop = true;
 });
 window.addEventListener("blur", () => pause(true));
@@ -183,10 +221,28 @@ document.addEventListener("visibilitychange", () => {
 });
 $("pause").onclick = () => pause();
 $("resume").onclick = () => pause(false);
-$("restart").onclick = reset;
-$("pause-restart").onclick = reset;
+$("pause-restart").onclick = () => { parkStart = false; reset(); };
+document.querySelectorAll('[data-park-start]').forEach(button => {
+  button.onclick = () => { parkStart = true; reset(); startOrResume(); button.blur(); };
+});
 $("again").onclick = reset;
+$("leaderboard-form").addEventListener('submit', async event => {
+  event.preventDefault();
+  const save = leaderboardFlow.save($("leaderboard-username").value);
+  renderLeaderboard();
+  try { await save; } catch {}
+  renderLeaderboard();
+});
+$("leaderboard-skip").onclick = () => {
+  leaderboardFlow.skip();
+  renderLeaderboard();
+  $("again").focus();
+};
 $("sound").onclick = toggleSound;
+document.addEventListener('click', (event) => {
+  if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, label, [role="button"], #radio-player, #loading')) return;
+  if (state.paused) startOrResume();
+});
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -227,43 +283,81 @@ function timeString(t) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
 }
 
+function renderLeaderboard() {
+  const flow = leaderboardFlow.state;
+  const formVisible = flow.phase === 'qualifying' || flow.phase === 'saving';
+  $("leaderboard-form").classList.toggle('hidden', !formVisible);
+  $("leaderboard-save").disabled = flow.phase === 'saving';
+  $("leaderboard-save").textContent = flow.phase === 'saving' ? 'SAVING…' : 'SAVE SCORE';
+  $("leaderboard-error").textContent = flow.error;
+  $("leaderboard-status").textContent = ({
+    idle: '', loading: 'CHECKING THE MOUNTAIN…', qualifying: 'TOP-TEN RUN',
+    saving: 'SAVING…', leaderboard: '', unavailable: 'UNAVAILABLE',
+  })[flow.phase] ?? '';
+  const list = $("leaderboard-list");
+  list.replaceChildren();
+  flow.entries.forEach(entry => {
+    const item = document.createElement('li');
+    const isCurrent = flow.rank === entry.rank && flow.username.localeCompare(entry.username, undefined, { sensitivity: 'base' }) === 0;
+    if (isCurrent) item.className = 'current';
+    const rank = document.createElement('span');
+    rank.textContent = String(entry.rank).padStart(2, '0');
+    const name = document.createElement('b');
+    name.textContent = entry.username;
+    const score = document.createElement('strong');
+    score.textContent = entry.score.toLocaleString();
+    item.append(rank, name);
+    if (isCurrent) {
+      const marker = document.createElement('em');
+      marker.textContent = 'YOU';
+      item.append(marker);
+    }
+    item.append(score);
+    list.append(item);
+  });
+}
+
+async function showFinish() {
+  const generation = ++finishGeneration;
+  best = Math.max(best, state.score);
+  try { localStorage.setItem(bestKey, String(best)); } catch {}
+  $("best").textContent = best.toLocaleString();
+  $("final-score").textContent = state.score.toLocaleString();
+  $("final-detail").textContent = `${state.jumps} jumps hit · ${timeString(state.time)} · Best ${best.toLocaleString()}`;
+  $("finish-panel").classList.remove("hidden");
+  renderLeaderboard();
+  await leaderboardFlow.evaluate(state.score);
+  if (generation !== finishGeneration) return;
+  renderLeaderboard();
+  if (leaderboardFlow.state.phase === 'qualifying') $("leaderboard-username").focus();
+  else $("again").focus();
+}
+
 function updateUI() {
+  $('start-panel').classList.toggle('hidden', !state.awaitingStart);
+  $('keyboard-guide').classList.toggle('hidden', !state.awaitingStart);
+  $('hud').classList.toggle('awaiting-start', !!state.awaitingStart);
   $("stance").classList.toggle("hidden", !state.switch);
-  $("speed").textContent = Math.round(state.speed * 3.6);
   $("score").textContent = String(state.score).padStart(6, "0");
-  $("timer").textContent = timeString(state.time);
+  $("score").classList.toggle('locked', state.scoreLocked);
+  $("score-timer").textContent = formatScoringTime(state.scoringTimeRemaining);
+  $("score-lock-status").classList.toggle('hidden', !state.scoreLocked);
   $("charge-wrap").style.opacity = state.charge > 0 ? 1 : 0;
   $("charge-fill").style.width = `${state.charge * 100}%`;
-  const percent = Math.min(100, (state.s / LENGTH) * 100);
-  $("course-fill").style.width = `${percent}%`;
-  $("course-rider").style.left = `${percent}%`;
-  const next = JUMPS.find((j) => j.lip > state.s);
-  $("next-jump").textContent = next
-    ? `${String(next.index + 1).padStart(2, "0")} / ${next.name}`
-    : "BRING IT HOME";
-  $("jump-distance").textContent =
-    `${Math.max(0, Math.round((next ? next.lip : LENGTH) - state.s))} m`;
-  $("jump-count").textContent = `${state.jumps} / ${JUMPS.length} JUMPS`;
-  markerEls.forEach((el, i) =>
-    el.classList.toggle("passed", state.seenJumps.has(i)),
-  );
-  if(COURSE.openWorld) {
-    const area=areaAt(state.x,state.s);
-    $('next-jump').textContent=area.name;
-    $('jump-distance').textContent=`${Math.max(0,Math.round(state.y-BASE_HEIGHT))} m ABOVE BASE`;
-    $('jump-count').textContent=`${state.jumps} FEATURES HIT`;
-    $('mountain-area').textContent=area.name;
-    $('mountain-hint').textContent=state.started ? 'BASE IN EVERY DIRECTION' : '← → TURN · ↑ PUSH OFF';
-    mountainMap.update(state);
-  }
-  const showAir = state.airborne && state.airtime > 0.18;
+  const showAir = state.airborne && (state.airtime > 0.18 || state.combo > 0);
   const showMessage = state.messageTimer > 0 && state.time > 4;
-  $("trick-display").classList.toggle("hidden", !showAir && !showMessage);
+  $("trick-display").classList.toggle("hidden", !state.railing && !showAir && !showMessage);
   $("trick-display").classList.toggle("bail", state.bailTimer > 0);
-  if (showAir) {
+  if(state.railing) {
+    const log=state.rail.kind==='log';
+    const handrail=state.rail.kind==='handrail';
+    $('trick-kicker').textContent=handrail?'EAST FACE PARK LINE':log?'FALLEN TIMBER':'SUMMIT EXPRESS';
+    $('trick-title').textContent=state.scoreLocked ? 'SCORE LOCKED' : state.combo ? `${state.combo.toLocaleString()} · ×${state.comboMultiplier}` : handrail?'HANDRAIL SLIDE':log?'LOG SLIDE':'CABLE SLIDE';
+    $('trick-detail').textContent=`${state.combo ? state.comboName + ' · ' : ''}${Math.round(state.rail.distance)} m · SPACE: POP · ← / →: 180${log || handrail?'':' · CLEAR THE TOWERS'}`;
+  } else if (showAir) {
     $("trick-kicker").textContent = "MAKE IT COUNT";
-    $("trick-title").textContent = state.combo
-      ? state.combo.toLocaleString()
+    $("trick-title").textContent = state.scoreLocked ? 'SCORE LOCKED' : state.combo
+      ? `${state.combo.toLocaleString()} · ×${state.comboMultiplier}`
       : "AIR TIME";
     $("trick-detail").textContent = state.comboName;
   } else if (showMessage) {
@@ -276,20 +370,9 @@ function updateUI() {
   $("air-height").textContent = state.airHeight.toFixed(1);
   $("air-time").textContent = state.airtime.toFixed(1);
   $("speed-lines").style.opacity = Math.max(0, Math.min(0.4, (state.speed - 30) * 0.02));
-  if (state.time > 7 && (!COURSE.openWorld || state.started))
-    document.querySelector(".run-info").classList.add("riding");
   if (state.finished && !finishShown) {
     finishShown = true;
-    best = Math.max(best, state.score);
-    try {
-      localStorage.setItem(bestKey, String(best));
-    } catch {}
-    $("best").textContent = best.toLocaleString();
-    $("final-score").textContent = state.score.toLocaleString();
-    $("final-detail").textContent =
-      `${state.jumps} jumps hit · ${timeString(state.time)} · Best ${best.toLocaleString()}`;
-    $("finish-panel").classList.remove("hidden");
-    $("again").focus();
+    void showFinish();
   }
 }
 
@@ -301,6 +384,8 @@ function frame(time) {
     while (accumulator >= 1 / 120) {
       step(state, input(), 1 / 120);
       pendingPop = false;
+      pendingSkate = false;
+      pendingRailTurn=0;
       accumulator -= 1 / 120;
     }
     cameraTargets();

@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { createMountainWorld } from './mountain-world.js';
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { createSkiLift } from './lift-world.js';
+import { createSnowMaterial } from './snow-surface.js';
+import { createAlpineSky } from './alpine-sky.js';
+import { createAlpineTrees } from './alpine-trees.js';
 import {
   COURSE,
   JUMPS,
@@ -35,56 +38,7 @@ function mesh(geometry, material, parent, x = 0, y = 0, z = 0) {
   return m;
 }
 
-function snowMaterial() {
-  const m = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.91,
-    vertexColors: true,
-  });
-  m.onBeforeCompile = (shader) => {
-    shader.uniforms.graniteTexture = { value: graniteTexture };
-    shader.vertexShader = shader.vertexShader.replace(
-      "#include <common>",
-      "#include <common>\nattribute float rockAmount; varying float vRock; varying vec3 vRockNormal; varying vec3 vSnowWorld;",
-    );
-    shader.vertexShader = shader.vertexShader.replace(
-      "#include <worldpos_vertex>",
-      "#include <worldpos_vertex>\nvSnowWorld = (modelMatrix * vec4(transformed,1.0)).xyz; vRock=rockAmount; vRockNormal=normalize(mat3(modelMatrix)*normal);",
-    );
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <common>",
-      `#include <common>
-      varying vec3 vSnowWorld;
-      varying float vRock;
-      varying vec3 vRockNormal;
-      uniform sampler2D graniteTexture;
-      float hashSnow(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-      float snowNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hashSnow(i),hashSnow(i+vec2(1,0)),f.x),mix(hashSnow(i+vec2(0,1)),hashSnow(i+vec2(1,1)),f.x),f.y);}`,
-    );
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <color_fragment>",
-      `#include <color_fragment>
-      float n=snowNoise(vSnowWorld.xz*2.8)*0.5+snowNoise(vSnowWorld.xz*0.17)*0.5;
-      float groom=sin(vSnowWorld.x*24.0+sin(vSnowWorld.z*0.02))*0.025;
-      vec3 weights=pow(abs(vRockNormal),vec3(4.0));weights/=max(dot(weights,vec3(1.0)),0.001);
-      vec3 cliff=texture2D(graniteTexture,vSnowWorld.yz*.09).rgb*weights.x+texture2D(graniteTexture,vSnowWorld.xz*.09).rgb*weights.y+texture2D(graniteTexture,vSnowWorld.xy*.09).rgb*weights.z;
-      diffuseColor.rgb=mix(diffuseColor.rgb*(0.85+n*0.22+groom),cliff*.85,vRock);
-      float terrainBump=mix(snowNoise(vSnowWorld.xz*3.0)*.022+groom*.06,dot(cliff,vec3(.333))*.28,vRock);
-    `,
-    );
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <normal_fragment_begin>",
-      `#include <normal_fragment_begin>
-      vec3 sx=dFdx(-vViewPosition),sy=dFdy(-vViewPosition);
-      vec3 rx=cross(sy,normal),ry=cross(normal,sx);
-      float determinant=dot(sx,rx)*faceDirection;
-      vec3 gradient=sign(determinant)*(dFdx(terrainBump)*rx+dFdy(terrainBump)*ry);
-      normal=normalize(abs(determinant)*normal-gradient);
-    `,
-    );
-  };
-  return m;
-}
+const snowMaterial = () => createSnowMaterial(graniteTexture, COURSE.natural);
 
 function terrain(scene) {
   const xs = [];
@@ -148,81 +102,16 @@ function terrain(scene) {
 }
 
 function trees(scene) {
-  const greenParts = [],
-    whiteParts = [];
-  for (let tier = 0; tier < 7; tier++) {
-    const radius = (1 - tier / 8) * 2.5,
-      y = 1.7 + tier * 0.98;
-    const core = new THREE.ConeGeometry(radius * 0.55, 2.2, 7);
-    core.translate(0, y + 0.4, 0);
-    greenParts.push(core);
-    for (let branch = 0; branch < 7; branch++) {
-      const angle = (branch / 7) * Math.PI * 2 + tier * 2.1;
-      const length = radius * (0.85 + random() * 0.3);
-      const dir = new THREE.Vector3(
-        Math.cos(angle),
-        -0.17,
-        Math.sin(angle),
-      ).normalize();
-      const q = new THREE.Quaternion().setFromUnitVectors(
-        new THREE.Vector3(0, 1, 0),
-        dir,
-      );
-      const b = new THREE.ConeGeometry(0.47 * (1 - tier * 0.08), length, 6);
-      b.applyQuaternion(q);
-      b.translate(dir.x * length * 0.43, y, dir.z * length * 0.43);
-      greenParts.push(b);
-      const cap = new THREE.SphereGeometry(1, 6, 4);
-      cap.scale(
-        length * 0.52,
-        0.15 * (1 - tier * 0.06),
-        0.3 * (1 - tier * 0.08),
-      );
-      cap.rotateY(-angle);
-      cap.translate(dir.x * length * 0.44, y + 0.19, dir.z * length * 0.44);
-      whiteParts.push(cap);
-    }
+  const trees = [];
+  const treeLine = (baseHeight(0) + baseHeight(LENGTH)) * .5;
+  for (let i=0; i<2400 && trees.length<100; i++) {
+    const s=LENGTH*(.5+random()*.48), side=random()<.5?-1:1;
+    const x=centerAt(s)+side*(45+Math.pow(random(),1.8)*150);
+    const y=sceneryHeight(x,s);
+    if(y>treeLine-10 || trees.some(t=>Math.hypot(t.x-x,t.s-s)<14)) continue;
+    trees.push({x,s,y,scale:.65+random()*.7});
   }
-  const tip = new THREE.ConeGeometry(0.42, 1.7, 7);
-  tip.translate(0, 8.3, 0);
-  whiteParts.push(tip);
-  const count = COURSE.natural ? 160 : 1000;
-  const green = new THREE.InstancedMesh(
-    mergeGeometries(greenParts),
-    mat("#214c48"),
-    count,
-  );
-  const white = new THREE.InstancedMesh(
-    mergeGeometries(whiteParts),
-    mat("#ecf4f8"),
-    count,
-  );
-  const trunks = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.15, 0.29, 4, 6),
-    mat("#605d56"),
-    count,
-  );
-  const dummy = new THREE.Object3D();
-  for (let i = 0; i < count; i++) {
-    const s = COURSE.natural ? LENGTH * (0.67 + random() * 0.35) : -100 + random() * 1600,
-      side = random() < 0.5 ? -1 : 1;
-    const x = centerAt(s) + side * ((COURSE.natural ? 100 : 42) + Math.pow(random(), 1.8) * 235);
-    const scale = 0.6 + random() * 1.2;
-    dummy.position.set(x, sceneryHeight(x, s), -s);
-    dummy.scale.setScalar(scale);
-    dummy.rotation.set(0, random() * Math.PI * 2, (random() - 0.5) * 0.05);
-    dummy.updateMatrix();
-    green.setMatrixAt(i, dummy.matrix);
-    white.setMatrixAt(i, dummy.matrix);
-    dummy.position.y += 2 * scale;
-    dummy.updateMatrix();
-    trunks.setMatrixAt(i, dummy.matrix);
-  }
-  for (const m of [green, white, trunks]) {
-    m.castShadow = true;
-    m.receiveShadow = true;
-    scene.add(m);
-  }
+  return createAlpineTrees(scene,trees);
 }
 
 function rocks(scene) {
@@ -372,6 +261,8 @@ function textTexture(text, bg = "#dfff66", color = "#162d3b", size = 256) {
   ctx.fillRect(0, 0, c.width, c.height);
   ctx.fillStyle = color;
   ctx.font = `italic 900 ${size * 0.47}px Arial`;
+  const textWidth = ctx.measureText(text).width;
+  if (textWidth > c.width * .92) ctx.font = `italic 900 ${size * .47 * c.width * .92 / textWidth}px Arial`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, c.width / 2, c.height / 2);
@@ -379,6 +270,63 @@ function textTexture(text, bg = "#dfff66", color = "#162d3b", size = 256) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   return texture;
+}
+
+function summitParkSign(scene) {
+  const x=-3.8,s=2.5,base=groundHeight(x,s),height=groundHeight(0,0)+2.2-base;
+  const sign=new THREE.Group();
+  sign.name='Summit sign / East Face Park Line';
+  sign.position.set(x,base,-s);
+  // Local +X is the arrow tip; aim at the actual park drop-in in world space.
+  sign.rotation.y=Math.atan2(-s,COURSE.PARK_LINE.start-x);
+  scene.add(sign);
+  const grain=document.createElement('canvas');grain.width=1024;grain.height=256;
+  const ctx=grain.getContext('2d'),woodRandom=randomGenerator(4207);
+  ctx.fillStyle='#80603d';ctx.fillRect(0,0,grain.width,grain.height);
+  for(let i=0;i<180;i++) {
+    const y=woodRandom()*256,amplitude=1+woodRandom()*5,phase=woodRandom()*6.28;
+    ctx.strokeStyle=i%3===0?'#d6af7955':'#38211144';ctx.lineWidth=.5+woodRandom()*2;
+    ctx.beginPath();
+    for(let x=0;x<=1024;x+=8) {
+      const yy=y+Math.sin(x*.014+phase)*amplitude;
+      if(x===0)ctx.moveTo(x,yy);else ctx.lineTo(x,yy);
+    }
+    ctx.stroke();
+  }
+  for(const [x,y] of [[180,175],[760,65]])for(let r=4;r<28;r+=4) {
+    ctx.strokeStyle='#3f291966';ctx.lineWidth=1.4;ctx.beginPath();
+    ctx.ellipse(x,y,r*2.7,r,0,0,Math.PI*2);ctx.stroke();
+  }
+  const woodTexture=new THREE.CanvasTexture(grain);woodTexture.colorSpace=THREE.SRGBColorSpace;
+  woodTexture.anisotropy=4;
+  const postTexture=woodTexture.clone();postTexture.center.set(.5,.5);postTexture.rotation=Math.PI/2;
+  const wood=new THREE.MeshStandardMaterial({map:postTexture,roughness:.96});
+  const post=new THREE.Mesh(new THREE.BoxGeometry(.18,height+.4,.22),wood);
+  post.position.y=height/2-.2;post.castShadow=true;sign.add(post);
+  const plank=new THREE.Group();plank.position.y=height;plank.scale.setScalar(.6);sign.add(plank);
+  const shape=new THREE.Shape();
+  shape.moveTo(-2.7,-.6);shape.lineTo(1.8,-.6);shape.lineTo(2.8,0);
+  shape.lineTo(1.8,.6);shape.lineTo(-2.7,.6);shape.closePath();
+  woodTexture.repeat.set(1/5.5,1/1.2);woodTexture.offset.set(2.7/5.5,.5);
+  const board=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.18,bevelEnabled:false}),
+    new THREE.MeshStandardMaterial({map:woodTexture,roughness:.96}));
+  board.castShadow=true;plank.add(board);
+  const paint=document.createElement('canvas');paint.width=1024;paint.height=256;
+  const lettering=paint.getContext('2d');
+  lettering.fillStyle='#fff9ed';lettering.font='bold 88px Arial';
+  lettering.textAlign='center';lettering.textBaseline='middle';
+  lettering.fillText('East Face Park Line',512,128,970);
+  // Tiny worn patches let the grain show through the painted lettering.
+  lettering.globalCompositeOperation='destination-out';
+  for(let i=0;i<650;i++)lettering.fillRect(woodRandom()*1024,woodRandom()*256,1+woodRandom()*3,1+woodRandom()*2);
+  const paintTexture=new THREE.CanvasTexture(paint);paintTexture.colorSpace=THREE.SRGBColorSpace;paintTexture.anisotropy=4;
+  const label=new THREE.MeshBasicMaterial({map:paintTexture,transparent:true,depthWrite:false,toneMapped:false});
+  for(const side of [-1,1]) {
+    // Separate front/back faces keep the lettering readable from either side.
+    const face=new THREE.Mesh(new THREE.PlaneGeometry(4.3,1.05),label);
+    face.position.set(-.45,0,side>0?.19:-.01);
+    face.rotation.y=side>0?0:Math.PI;plank.add(face);
+  }
 }
 
 function line(scene, points, color, opacity = 1) {
@@ -502,7 +450,7 @@ function gates(scene) {
     line(scene, points, "#dd735c", 0.8);
   }
   for (const [s, text] of [
-    [-14, "SKIMANGAME"],
+    [-14, "MAD STEEZ"],
     [LENGTH, "FINISH / NORTH PEAK"],
   ]) {
     const y = baseHeight(s);
@@ -559,130 +507,11 @@ function naturalMarkers(scene) {
   }), scene, 0, baseHeight(LENGTH) + 7, -LENGTH);
 }
 
-function lift(scene) {
-  const steel = mat("#48626e", { metalness: 0.6, roughness: 0.43 }),
-    seats = mat("#172f3a"),
-    chairs = [];
-  for (let s = -100; s <= 1450; s += 155) {
-    const x = -64,
-      y = sceneryHeight(x, s);
-    mesh(
-      new THREE.CylinderGeometry(0.35, 0.65, 16, 10),
-      steel,
-      scene,
-      x,
-      y + 8,
-      -s,
-    );
-    mesh(new THREE.BoxGeometry(11, 0.5, 0.65), steel, scene, x, y + 16, -s);
-    for (const offset of [-4.5, 4.5])
-      mesh(
-        new THREE.BoxGeometry(1.2, 0.8, 1.9),
-        seats,
-        scene,
-        x + offset,
-        y + 15.9,
-        -s,
-      );
-  }
-  for (const offset of [-4.5, 4.5]) {
-    const points = [];
-    for (let s = -100; s <= 1450; s += 5)
-      points.push(
-        new THREE.Vector3(
-          -64 + offset,
-          sceneryHeight(-64, s) +
-            16 -
-            Math.sin((((s + 100) % 155) / 155) * Math.PI) * 2,
-          -s,
-        ),
-      );
-    line(scene, points, "#304551");
-    for (let s = -80; s < 1430; s += 44) {
-      const group = new THREE.Group();
-      scene.add(group);
-      mesh(
-        new THREE.CylinderGeometry(0.045, 0.045, 2.4, 6),
-        steel,
-        group,
-        0,
-        -1.2,
-        0,
-      );
-      mesh(new THREE.BoxGeometry(2.5, 0.16, 0.95), seats, group, 0, -3, 0);
-      mesh(new THREE.BoxGeometry(2.5, 0.65, 0.12), seats, group, 0, -2.6, 0.4);
-      for (const x of [-1.2, 1.2])
-        mesh(
-          new THREE.CylinderGeometry(0.045, 0.045, 1.2, 5),
-          steel,
-          group,
-          x,
-          -2.4,
-          0.3,
-        );
-      chairs.push({ group, s, offset });
-    }
-  }
-  return (time) => {
-    for (const c of chairs) {
-      const s = ((c.s + time * (c.offset > 0 ? 2 : -2) + 2000) % 1510) - 100;
-      c.group.position.set(
-        -64 + c.offset,
-        sceneryHeight(-64, s) +
-          16 -
-          Math.sin((((s + 100) % 155) / 155) * Math.PI) * 2,
-        -s,
-      );
-    }
-  };
-}
-
-function sky(scene) {
-  const g = new THREE.SphereGeometry(8500, 40, 24);
-  const m = new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    depthWrite: false,
-    uniforms: {
-      top: { value: new THREE.Color("#367da9") },
-      bottom: { value: new THREE.Color("#d4e6e9") },
-    },
-    vertexShader:
-      "varying vec3 vWorld; void main(){vWorld=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}",
-    fragmentShader:
-      "varying vec3 vWorld;uniform vec3 top;uniform vec3 bottom;void main(){float t=pow(max(normalize(vWorld).y,0.0),0.6);gl_FragColor=vec4(mix(bottom,top,t),1.0);}",
-  });
-  const dome = new THREE.Mesh(g, m);
-  scene.add(dome);
-  const c = document.createElement("canvas");
-  c.width = 128;
-  c.height = 128;
-  const ctx = c.getContext("2d");
-  const grad = ctx.createRadialGradient(64, 64, 1, 64, 64, 64);
-  grad.addColorStop(0, "rgba(255,253,222,1)");
-  grad.addColorStop(0.13, "rgba(255,249,218,.95)");
-  grad.addColorStop(0.25, "rgba(255,239,194,.22)");
-  grad.addColorStop(1, "rgba(255,234,186,0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 128, 128);
-  const sun = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: new THREE.CanvasTexture(c),
-      transparent: true,
-      depthWrite: false,
-      fog: false,
-    }),
-  );
-  sun.position.set(-850, 1250, -1600);
-  sun.scale.set(850, 850, 1);
-  scene.add(sun);
-  return dome;
-}
-
 export function createWorld(scene) {
-  scene.fog = new THREE.Fog("#b7d3df", COURSE.openWorld ? 900 : 180, COURSE.openWorld ? 6200 : 1350);
-  const dome = sky(scene);
-  scene.add(new THREE.HemisphereLight("#d2eaff", "#7b97a3", 2.1));
-  const sun = new THREE.DirectionalLight("#fff3d9", 3.1);
+  scene.fog = new THREE.Fog("#c2d5df", COURSE.openWorld ? 1200 : 220, COURSE.openWorld ? 6800 : 1900);
+  const sky = createAlpineSky(scene);
+  scene.add(new THREE.HemisphereLight("#c5ddf5", "#778e9d", 1.25));
+  const sun = new THREE.DirectionalLight("#fff0d9", 2.7);
   sun.position.set(-90, 150, -100);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -697,23 +526,27 @@ export function createWorld(scene) {
   sun.shadow.bias = -0.00015;
   sun.shadow.normalBias = 0.12;
   scene.add(sun, sun.target);
-  let mountain;
-  if (COURSE.openWorld) mountain = createMountainWorld(scene, snowMaterial());
+  let mountain,forest;
+  if (COURSE.openWorld) {
+    mountain = createMountainWorld(scene, snowMaterial());
+    summitParkSign(scene);
+  }
   else {
     terrain(scene);
     distantPeaks(scene);
-    trees(scene);
+    forest=trees(scene);
     rocks(scene);
     gates(scene);
   }
-  const updateLift = COURSE.natural ? () => {} : lift(scene);
+  const skiLift = createSkiLift(scene);
   return {
     update(s) {
       mountain?.update(s);
+      forest?.userData.update(s);
       sun.position.set(s.x - 90, s.y + 150, -s.s - 100);
       sun.target.position.set(s.x, s.y, -s.s - 20);
-      dome.position.set(s.x, s.y, -s.s);
-      updateLift(s.time);
+      sky.update(s);
+      skiLift?.update(s.time);
     },
   };
 }

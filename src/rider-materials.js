@@ -80,7 +80,7 @@ export function createRiderMaterials() {
       c.fillStyle = "#182d36";
       c.font = "italic 900 28px Arial";
       c.textAlign = "center";
-      c.fillText("SKIMANGAME", 0, 0);
+      c.fillText("MAD STEEZ", 0, 0);
       c.restore();
       c.strokeStyle = "#eff8cc90";
       c.lineWidth = 2;

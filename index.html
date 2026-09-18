@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#162b39" />
+    <meta name="theme-color" content="#100d10" />
     <meta
       name="description"
-      content="Drop into SKIMANGAME: a five-jump, arcade freestyle skiing game."
+      content="Drop into MAD STEEZ: an open-mountain freestyle skiing game."
     />
-    <title>SKIMANGAME — Freestyle Skiing</title>
+    <title>MAD STEEZ — Freestyle Skiing</title>
   </head>
   <body>
     <canvas id="game" aria-label="Third-person downhill skiing game"></canvas>
@@ -16,17 +16,11 @@
     <div id="speed-lines"></div>
     <main id="hud">
       <header>
-        <div class="brand">
-          <span class="mountain-icon">╱╲</span>
-          <div>SKIMANGAME<span>FREESTYLE SKIING</span></div>
-          <i>FREESTYLE / VOL. 01</i>
-        </div>
         <div class="location">
-          <span class="live-dot"></span> NORTH PEAK
-          <span class="divider">/</span> <span>BLUEBIRD RUN</span>
+          <span class="live-dot"></span> OPEN MOUNTAIN
+          <span class="divider">/</span> <span>BLACKRIDGE</span>
         </div>
         <div class="top-actions">
-          <label class="map-picker">MAP <select id="map-select" aria-label="Select mountain map"></select></label>
           <button id="sound" title="Toggle sound (M)" aria-label="Enable sound">
             SOUND <span id="sound-status">OFF</span></button
           ><button id="pause" title="Pause (Escape)">
@@ -34,16 +28,15 @@
           </button>
         </div>
       </header>
-      <section class="run-info">
-        <div class="eyebrow">THE MOUNTAIN IS YOURS</div>
-        <h1>DROP IN.<br /><em>STAND OUT.</em></h1>
-        <p>1,180 m of freedom. Five chances to fly.</p>
-        <div class="run-tag"><span>◆</span> SLOPESTYLE <b>05 JUMPS</b></div>
-      </section>
       <section class="score-block">
         <div class="eyebrow">RUN SCORE</div>
         <div id="score">000000</div>
         <div class="best">PERSONAL BEST <b id="best">0</b></div>
+      </section>
+      <section class="run-time" aria-label="Competitive scoring time">
+        <div class="eyebrow">SCORING WINDOW</div>
+        <strong id="score-timer">1:15</strong>
+        <span id="score-lock-status" class="hidden">SCORE LOCKED · KEEP RIDING</span>
       </section>
       <section id="trick-display" class="hidden" aria-live="polite">
         <div id="trick-kicker">IN THE AIR</div>
@@ -56,52 +49,11 @@
       </div>
       <section class="speed-block">
         <div id="stance" class="hidden">↶ SWITCH</div>
-        <div class="eyebrow">SPEED / KM/H</div>
-        <div id="speed">50</div>
         <div id="charge-wrap">
           <span>POP</span>
           <div><i id="charge-fill"></i></div>
         </div>
       </section>
-      <section class="course-info">
-        <div class="course-label">
-          <span id="next-jump">FIRST FLIGHT</span
-          ><span id="jump-distance">115 m</span>
-        </div>
-        <div class="course-track">
-          <div id="course-fill"></div>
-          <div id="jump-markers"></div>
-          <i id="course-rider"></i>
-        </div>
-        <div class="course-caption">
-          <span>SUMMIT <b>2,840 m</b></span
-          ><span id="jump-count">0 / 5 JUMPS</span
-          ><span>BASE <b>2,527 m</b></span>
-        </div>
-      </section>
-      <section id="mountain-nav" class="hidden" aria-label="Mountain navigation">
-        <span id="mountain-area">THE SUMMIT</span>
-        <canvas id="mountain-map" aria-label="Mountain contour map"></canvas>
-        <span id="mountain-hint">← → TURN · ↑ PUSH OFF</span>
-      </section>
-      <div class="run-time">
-        <span class="eyebrow">RUN TIME</span><strong id="timer">00:00.00</strong
-        ><button id="restart" title="Respawn at the summit (R)">
-          ↺ <span>BACK TO TOP</span><kbd>R</kbd>
-        </button>
-      </div>
-      <footer>
-        <div>
-          <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd><kbd>IJKL</kbd
-          ><span>STEER / AIR TRICKS</span>
-        </div>
-        <div><kbd>SPACE</kbd><span>HOLD: CHARGE · RELEASE: POP</span></div>
-        <div><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>S</kbd><span>GRABS</span></div>
-        <div><kbd>A</kbd><span>DAFFY · RELEASE TO RECOVER</span></div>
-        <div class="landing-tip">
-          LEVEL YOUR SKIS BEFORE TOUCHDOWN <span>↗</span>
-        </div>
-      </footer>
     </main>
     <aside id="radio-player" aria-label="Internet rock radio">
       <a href="https://radioparadise.com" target="_blank" rel="noopener noreferrer" title="Radio Paradise">RP <span>ROCK MIX</span></a>
@@ -110,6 +62,49 @@
       <label title="Radio volume">VOL <input id="radio-volume" type="range" min="0" max="100" value="35" aria-label="Radio volume" /></label>
       <audio id="radio-audio" preload="none"></audio>
     </aside>
+    <aside id="keyboard-guide" aria-label="Keyboard controls">
+      <section class="binding-group">
+        <h3>01 <span>FIND YOUR LINE</span></h3>
+        <dl class="bindings movement-bindings">
+          <div><dt><kbd>Ctrl</kbd></dt><dd>Start / skate</dd></div>
+          <div><dt><kbd>Space</kbd></dt><dd>Hold to tuck &amp; charge<br /><small>Release to pop · also on rails</small></dd></div>
+          <div><dt><kbd>←</kbd><kbd>→</kbd><span class="key-alt">/</span><kbd>J</kbd><kbd>L</kbd></dt><dd>Carve / spin<br /><small>Tap on rails for a 180</small></dd></div>
+          <div><dt><kbd>↑</kbd><kbd>↓</kbd><span class="key-alt">/</span><kbd>I</kbd><kbd>K</kbd></dt><dd>Frontflip / backflip</dd></div>
+        </dl>
+      </section>
+      <section class="binding-group">
+        <h3>02 <span>ADD SOME STYLE</span></h3>
+        <dl class="bindings grab-bindings">
+          <div><dt><kbd>Q</kbd></dt><dd>Blunt</dd></div>
+          <div><dt><kbd>W</kbd></dt><dd>Mute</dd></div>
+          <div><dt><kbd>E</kbd></dt><dd>Tail</dd></div>
+          <div><dt><kbd>R</kbd></dt><dd>Hang Out</dd></div>
+          <div><dt><kbd>A</kbd></dt><dd>Daffy</dd></div>
+          <div><dt><kbd>S</kbd></dt><dd>Octo</dd></div>
+          <div><dt><kbd>D</kbd></dt><dd>Japan</dd></div>
+          <div><dt><kbd>F</kbd></dt><dd>Bow and Arrow</dd></div>
+        </dl>
+        <p class="binding-note">Hold in the air. Release Daffy before landing.</p>
+      </section>
+      <section class="binding-group">
+        <h3>03 <span>YOUR SESSION</span></h3>
+        <dl class="bindings">
+          <div><dt><kbd>Esc</kbd><span class="key-alt">/</span><kbd>P</kbd></dt><dd>Pause</dd></div>
+          <div><dt><kbd>Space</kbd></dt><dd>Resume when paused</dd></div>
+          <div><dt><kbd aria-label="Backspace">⌫</kbd></dt><dd>New run</dd></div>
+          <div><dt><kbd>M</kbd></dt><dd>Sound on / off</dd></div>
+        </dl>
+      </section>
+    </aside>
+    <section id="start-panel" aria-labelledby="start-title">
+      <div class="panel start-panel">
+        <img class="menu-logo" src="/branding/mad-steez-logo-horizontal-v3.png" alt="Mad Steez" width="2172" height="724" draggable="false" />
+        <div class="eyebrow">FIND YOUR LINE</div>
+        <h2 id="start-title">CHOOSE YOUR LINE.</h2>
+        <p><b>← → / J L</b> Turn on the summit<br />Hold <kbd>Ctrl</kbd> to skate and drop in.</p>
+        <button class="secondary" data-park-start>RIDE EAST FACE PARK LINE ↗</button>
+      </div>
+    </section>
     <section
       id="pause-panel"
       class="overlay hidden"
@@ -118,18 +113,21 @@
       aria-labelledby="pause-title"
     >
       <div class="panel">
+        <img class="menu-logo" src="/branding/mad-steez-logo-horizontal-v3.png" alt="Mad Steez" width="2172" height="724" draggable="false" />
         <div class="eyebrow">TAKE A BREATHER</div>
         <h2 id="pause-title">ON HOLD.</h2>
         <p>The mountain can wait.</p>
-        <button id="resume" class="primary">KEEP RIDING <span>↗</span></button
-        ><button id="pause-restart" class="secondary">
-          ↺ BACK TO THE SUMMIT
+        <button class="secondary" data-park-start>RIDE EAST FACE PARK LINE ↗</button>
+        <button id="resume" class="primary" aria-keyshortcuts="Space">KEEP RIDING <kbd class="key-hint" aria-label="Space">␣</kbd></button
+        ><button id="pause-restart" class="secondary" aria-keyshortcuts="Backspace">
+          ↺ BACK TO THE SUMMIT <kbd class="key-hint" aria-label="Backspace">⌫</kbd>
         </button>
         <div class="panel-controls">
-          <p><b>↑ / I</b> Tuck · <b>↓ / K</b> Brake · <b>← → / J L</b> Carve</p>
-          <p><b>Space</b> Hold to charge · Release to pop</p>
+          <p><b>← → / J L</b> Carve · Hold <b>↑ / I</b> or <b>↓ / K</b> before takeoff to flip</p>
+          <p><b>Space</b> Hold to tuck, gain speed and charge · Release to pop</p>
+          <p><b>Ctrl</b> Hold to skate and double pole for extra speed · Push fades out at 144 km/h</p>
           <p><b>In air: ↑ ↓ / I K</b> Frontflip / backflip · <b>← → / J L</b> Spin</p>
-          <p><b>Q</b> Mute · <b>W</b> Blunt · <b>E</b> Tail · <b>S</b> Octo · <b>D</b> Japan · <b>R</b> Respawn · <b>M</b> Sound</p>
+          <p><b>Q</b> Blunt · <b>W</b> Mute · <b>E</b> Tail · <b>S</b> Octo · <b>D</b> Japan · <b>R</b> Hang Out · <b>F</b> Bow and Arrow · <b>⌫ Backspace</b> Respawn · <b>M</b> Sound</p>
           <p><b>A</b> Daffy: hold to split the skis forward/back and grab the front nose and rear tail (0.5s). Release to recover (0.5s) before landing to avoid a wipeout.</p>
           <p>Hold an arrow through takeoff to start a trick. Opposite flip input slows it before reversing; release to ease rotation to a stop. Release the arrows before takeoff for a straight air.</p>
         </div>
@@ -147,11 +145,28 @@
         <h2 id="finish-title">THAT’S A RUN.</h2>
         <div id="final-score">0</div>
         <p id="final-detail"></p>
+        <section id="leaderboard" aria-labelledby="leaderboard-title">
+          <div class="leaderboard-heading">
+            <h3 id="leaderboard-title">GLOBAL TOP 10</h3>
+            <span id="leaderboard-status" role="status" aria-live="polite"></span>
+          </div>
+          <form id="leaderboard-form" class="hidden">
+            <label for="leaderboard-username">YOU MADE THE TOP 10 — CHOOSE A USERNAME</label>
+            <div class="leaderboard-entry">
+              <input id="leaderboard-username" name="username" maxlength="16" autocomplete="nickname" placeholder="USERNAME" />
+              <button id="leaderboard-save" type="submit">SAVE SCORE</button>
+            </div>
+            <p id="leaderboard-error" role="alert"></p>
+            <button id="leaderboard-skip" class="leaderboard-skip" type="button">SKIP</button>
+          </form>
+          <ol id="leaderboard-list"></ol>
+          <p class="leaderboard-note">ONE BEST SCORE PER USERNAME</p>
+        </section>
         <button id="again" class="primary">ONE MORE RUN <span>↗</span></button>
       </div>
     </section>
     <div id="loading">
-      <span class="eyebrow">SKIMANGAME</span>
+      <span class="eyebrow">MAD STEEZ</span>
       <h2>FINDING FRESH SNOW<span>…</span></h2>
     </div>
     <script type="module" src="/src/main.js"></script>

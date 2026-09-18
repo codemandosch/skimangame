@@ -1,4 +1,4 @@
-# SKIMANGAME Implementation Plan
+# MAD STEEZ Implementation Plan
 
 **Goal:** Deliver a playable and visually polished five-jump skiing game in the browser.
 
