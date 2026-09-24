@@ -61,7 +61,7 @@ Blackridge stands in a forested resort valley ringed by eroded, glaciated ranges
 
 The three original Blender fir variants on Blackridge (150 well-spaced trees below half the summit-to-base elevation, clear of authored approaches and landings) keep their collision. Their editable source is in [art/environment/snow-firs](art/environment/snow-firs/README.md).
 
-Baked terrain data lives in `public/terrain/` and is regenerated with `npm run bake:landscape` (about a minute) whenever Blackridge's terrain, the sun or the landscape layout changes; `tests/landscape.test.js` fails if the bake is stale. On the dev server, `/tests/visual/vista.html` renders the real game pipeline from repeatable viewpoints (summit, faces in sun and shadow, park, lift, valley, aerial) and can step the real simulation (`lab.ride(seconds, input)`); `/tests/visual/environment.html` inspects the firs, powder and tracks.
+Baked terrain data lives in `public/terrain/` and is regenerated with `npm run bake:landscape` (about a minute) whenever Blackridge's terrain, the sun or the landscape layout changes; On the dev server, `/tests/visual/vista.html` renders the real game pipeline from repeatable viewpoints (summit, faces in sun and shadow, park, lift, valley, aerial) and can step the real simulation (`lab.ride(seconds, input)`); `/tests/visual/environment.html` inspects the firs, powder and tracks.
 
 ## Summit Express / cable rails
 
@@ -73,7 +73,7 @@ The mountain has an animated chairlift running between base and summit, with sag
 
 Fly upright within 3.5 metres of either cable to magnetically snap into a sideways slide, including approaches from the side or below. The lift terminal sits just below the summit: two lattice pylons stand outside its 13 m deck and a truss yoke carries the bullwheel just above the cable, so the ski path through the station stays open. The skier aligns perpendicular to the wire and stays attached through its changes in slope. Tap left/right (or J/L) for one animated 180 in that direction; holding the key does not repeat the turn. Tap Space to pop immediately, keeping your momentum; magnetic capture waits until you return toward the wire so it does not cancel your jump. Time the pop to clear a tower's upper guard and reconnect beyond it. Hitting a support causes a wipeout and detaches the skier. Reaching a terminal releases the skier into the air. Snow tracks and powder are suppressed while on the cable.
 
-Rendering, landing capture and swept tower collisions share `src/lift-layout.js`; `src/cable-physics.js` handles attachment, turns, pops and crashes, and `src/lift-world.js` builds the instanced towers and moving chairs. `tests/cable-rail.test.js` covers real snow-to-cable entries, both cables, directional 180s, tower impacts, tower clearances at 30/60/120 Hz, reset/pause, and reverse travel. The development-only `/tests/visual/lift.html` page provides landing, crash and successful tower-hop demonstrations using the normal game physics.
+Rendering, landing capture and swept tower collisions share `src/lift-layout.js`; `src/cable-physics.js` handles attachment, turns, pops and crashes, and `src/lift-world.js` builds the instanced towers and moving chairs. The development-only `/tests/visual/lift.html` page provides landing, crash and successful tower-hop demonstrations using the normal game physics.
 
 ## Structure and checks
 
@@ -101,16 +101,10 @@ Rendering, landing capture and swept tower collisions share `src/lift-layout.js`
 - `src/rider-materials.js`: clothing seams, equipment graphics and rider materials.
 - `src/effects.js`: pooled, lit snow spray, ski tracks and synthesized audio.
 - `src/main.js`: keyboard input, fixed 120 Hz simulation, camera and HUD.
-- `tests/physics.test.js`: automated skiing and gameplay regressions.
-- `tests/blackridge.test.js`: all-direction descents, signature jump flights, completion and legacy map links.
-- `tests/mountain-contact.test.js`: full-circle slope contact, matching terrain triangles, restart detail and camera clearance.
-- `tests/rider-pose.test.js`: hand/ski contact, boot alignment, limb lengths and smooth turning regressions.
-- `tests/skinned-rider.test.js`: contact and transition checks against the actual shipped GLB, including transformed parent spaces.
 - `tests/visual/rider.html`: development-only close-up pose viewer. Open this path on the Vite server to inspect grabs, leg crossing and carving from different angles.
 - `tests/visual/grabs.html`: development-only contact sheet of every held grab from several angles, showing how far each skinned hand misses its ski. Narrow it with `?grabs=mute,japan&views=front,side&size=400`.
 
 ```sh
-npm test
 npm run build
 ```
 

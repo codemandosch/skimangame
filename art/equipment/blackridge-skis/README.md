@@ -16,5 +16,4 @@ Rebuild with Blender 5.2:
 ```powershell
 blender --background --python art/equipment/blackridge-skis/inspect_source.py
 blender --background --python art/equipment/blackridge-skis/build_game.py
-node --test tests/blackridge-ski.test.js tests/blackridge-ski-loader.test.js
 ```

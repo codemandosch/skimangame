@@ -81,6 +81,8 @@ export function createRiderPose() {
     spineBend: 0,
     // How much of the relaxed, narrow on-snow stance applies (0 in the air).
     snowStance: 0,
+    // How much of the default in-air tuck applies (grabs take over from it).
+    airTuck: 0,
     skis: [],
     legs: [],
     arms: [],
@@ -183,6 +185,14 @@ export function updateRiderPose(p, s, dt) {
   const skiBow = s.airborne ? p.bow : 0;
   // Physics owns the clock, so the rendered legs and the landing rule agree.
   p.daffy = s.airborne ? MathUtils.smoothstep(s.daffyProgress || 0, 0, 1) : 0;
+  // In the air without a grab the rider folds at the hips with the skis
+  // together; any grab or daffy takes over from it completely.
+  const grabbing = Math.min(1, p.mute + p.safety + p.blunt + p.octo + p.japan + p.hangout + p.bow + p.daffy);
+  // The legs reach back down for the snow in the last moments before touchdown,
+  // so landing does not snap the boots back under the hips.
+  const secondsToSnow = (s.airHeight ?? Infinity) / Math.max(1, -(s.vy || 0));
+  const reachForSnow = (s.vy || 0) < 0 ? 1 - MathUtils.smoothstep(secondsToSnow, 0.1, 0.35) : 0;
+  const air = p.airTuck = s.airborne ? (1 - ground) * (1 - grabbing) * (1 - reachForSnow) : 0;
   const chatter =
     (s.railing ? 0 : ground) * Math.sin(s.time * 17) * Math.min(0.013, s.speed * 0.00045);
   p.hips.set(
@@ -198,7 +208,7 @@ export function updateRiderPose(p, s, dt) {
     0.03 + p.mute * 0.02 + rearGrab * 0.03,
   );
   p.torsoRotation.set(
-    -0.12 - snow * 0.16 - p.crouch * 0.5 - p.tuck * 0.6 - p.octo * 0.25,
+    -0.12 - snow * 0.16 - air * 0.3 - p.crouch * 0.5 - p.tuck * 0.6 - p.octo * 0.25,
     rearGrab * -0.62 + lean * 0.1 - p.octo * 0.3,
     -lean * (0.52 + p.skid * .16),
   );
@@ -221,7 +231,7 @@ export function updateRiderPose(p, s, dt) {
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.2, p.safety);
   p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, 0, p.safety);
   p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, -0.45, p.safety);
-  p.spineCurl = -0.25 * p.mute - 0.1 * p.safety - 0.4 * p.japan;
+  p.spineCurl = -0.15 * air - 0.25 * p.mute - 0.1 * p.safety - 0.4 * p.japan;
   p.spineBend = -0.35 * p.safety - 0.1 * p.japan + 0.3 * p.bow;
   // Relax into an open, arched posture; aerial rotation remains physics-owned.
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, Math.PI / 2 + 0.15, p.hangout);
@@ -271,6 +281,11 @@ export function updateRiderPose(p, s, dt) {
       -edge * 0.68,
       "YXZ",
     );
+    // Freestyle air: fold at the hips with the thighs up toward the chest and
+    // the knees only half bent, boots out ahead and tips up, rather than a
+    // ski jumper kneeling with the chest over the knees.
+    position.lerp(v(side * 0.15, 0.5, -0.74), air);
+    rotation.x = MathUtils.lerp(rotation.x, 0.5, air);
     // Safety: both skis parallel and close together, tweaked out to the right
     // of the tucked knees and rolled onto their sides, bases facing out.
     position.lerp(i ? v(0.6, 0.6, -0.12) : v(0.44, 0.56, -0.08), skiSafety);
@@ -337,6 +352,7 @@ export function updateRiderPose(p, s, dt) {
       .applyQuaternion(p.torsoQuaternion)
       .add(p.hips);
     const kneePole = v(side * MathUtils.lerp(0.45, 0.18, snow) + lean * 0.42, 0.6 + rearGrab * 0.9, -1.1);
+    kneePole.lerp(v(side * 0.14, 1.6, -1.0), air);
     // Knees stay together and drive up toward the chest.
     kneePole.lerp(v(side * 0.12, 1.35, -1.2), skiMute + skiOcto);
     // Safety knees fold up together and point forward toward the skis' side.
@@ -403,6 +419,8 @@ export function updateRiderPose(p, s, dt) {
         - outside * 0.1,
       -0.4 - snow * 0.1 - p.tuck * 0.12 + outside * 0.1,
     );
+    // Tucked in the air, the hands sit forward over the knees.
+    normal.lerp(v(side * 0.45, 0.32, -0.42).add(p.hips), air);
     // Crouched to pop, the arms hang nearly straight in front of the knees.
     const crouchedArms = p.tuck * snow;
     normal.lerp(v(side * 0.3 + lean * 0.3, -0.24, -0.6).add(p.hips), crouchedArms);

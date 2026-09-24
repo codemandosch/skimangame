@@ -5,12 +5,13 @@ import { createState } from "../../src/physics.js";
 // Every held grab from five angles: ?grabs=mute,japan&views=front,side&size=260 narrows the sheet.
 // The snow stances neutral, charge (Space held), carve-left and carve-right can be listed too.
 const params = new URLSearchParams(location.search);
-const grabs = { mute: 1, safety: 2, blunt: 3, octo: 4, japan: 5, hangout: 6, bow: 7, daffy: 0 };
+const grabs = { air: 0, mute: 1, safety: 2, blunt: 3, octo: 4, japan: 5, hangout: 6, bow: 7, daffy: 0 };
 const stances = { neutral: {}, charge: { tucking: true, charge: 1 }, "carve-left": { steer: -1 }, "carve-right": { steer: 1 } };
 const names = (params.get("grabs") || Object.keys(grabs).join(",")).split(",");
 const views = { front: Math.PI, "front-3/4": Math.PI * .75, side: Math.PI / 2, "rear-3/4": Math.PI * .25, rear: 0, "left-3/4": -Math.PI * .75, left: -Math.PI / 2 };
 const angles = (params.get("views") || "front,front-3/4,side,rear-3/4,rear").split(",").map(view => [view, views[view]]);
 const size = Number(params.get("size") || 220);
+const distance = Number(params.get("distance") || 4.2);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#344958");
@@ -59,7 +60,7 @@ names.forEach((name, row) => {
   report[name] = skier.contacts?.hands.map(hand => +hand.actual.distanceTo(hand.target).toFixed(3));
   angles.forEach(([label, angle], column) => {
     const lift = onSnow ? -0.45 : 0;
-    camera.position.set(Math.sin(angle) * 4.2, 182.15 + lift, Math.cos(angle) * 4.2);
+    camera.position.set(Math.sin(angle) * distance, 182.15 + lift, Math.cos(angle) * distance);
     camera.lookAt(0, 181.7 + lift, 0);
     renderer.render(scene, camera);
     context.drawImage(renderer.domElement, column * size, row * size);
