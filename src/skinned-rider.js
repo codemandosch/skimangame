@@ -3,6 +3,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { solveLimb } from "./rider-pose.js";
 
 const vector = (x = 0, y = 0, z = 0) => new Vector3(x, y, z);
+const BOOT_OUTSET = 0.025;
+const BOOT_TOE_IN = 0.11;
 
 /** Pose the Blender deform rig in the rider body's space, preserving limb lengths. */
 export function createSkinnedRiderRig(model, space) {
@@ -90,7 +92,9 @@ export function createSkinnedRiderRig(model, space) {
         const prefix = sides[i];
         const ski = pose.skis[i];
         const footName = `${prefix}_Foot`;
-        const footTarget = vector(0, rest[footName].point.y + 0.17, 0.045)
+        // The boot shell sits ~2.5 cm inboard of the ankle bone; shift the bone
+        // outward so the boot itself, not the ankle, centres on the binding.
+        const footTarget = vector(side * BOOT_OUTSET, rest[footName].point.y + 0.17, 0.045)
           .applyQuaternion(ski.quaternion).add(ski.position);
         const kneePole = vector(side * (0.55 - pose.snowStance * 0.33) + pose.hips.x * 0.9,
           0.6 + pose.blunt * 0.9, -1.1);
@@ -101,8 +105,10 @@ export function createSkinnedRiderRig(model, space) {
         solve(legs[i], footTarget, kneePole);
         const toeDirection = rest[`${prefix}_ToeBase`].point.clone().sub(rest[footName].point);
         const footYaw = Math.atan2(toeDirection.x, -toeDirection.z);
+        // The ankle-to-toe bone runs straighter than the boot shell, which
+        // still toes out; turn the shell square to the ski between the bindings.
         const footRotation = ski.quaternion.clone()
-          .multiply(new Quaternion().setFromAxisAngle(vector(0, 1, 0), footYaw))
+          .multiply(new Quaternion().setFromAxisAngle(vector(0, 1, 0), footYaw + side * BOOT_TOE_IN))
           .multiply(rest[footName].rotation);
         rotate(footName, footRotation);
         feet.push({ bone: bones[footName], target: footTarget });

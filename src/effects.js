@@ -4,6 +4,7 @@ import { snowLaunch, advanceSnow } from './snow-dynamics.js';
 import { landingPowderPressure } from './landing-impact.js';
 import { createLandingCrater } from './landing-crater.js';
 import { SUN_VECTOR } from './sun.js';
+import { SNOW_SKI_OFFSET } from './rider-pose.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function snowSprayRate(s) {
@@ -81,8 +82,8 @@ export function createEffects(scene) {
       const id=cursor++%count;
       const side=!burst && Math.abs(s.steer)>.12 && Math.random()<.8 ? -Math.sign(s.steer) : Math.random()<.5?-1:1;
       const launch=snowLaunch(s,side,burst);
-      const x=s.x+rightX*side*.32+Math.sin(heading)*.6;
-      const z=-s.s-rightS*side*.32+Math.cos(heading)*.6;
+      const x=s.x+rightX*side*SNOW_SKI_OFFSET+Math.sin(heading)*.6;
+      const z=-s.s-rightS*side*SNOW_SKI_OFFSET+Math.cos(heading)*.6;
       particles[id]={...launch,x,y:Math.max(s.y,groundHeight(x,-z))+.12,z,
         duration:launch.life,initialSize:launch.size,settled:false};
     }
@@ -95,7 +96,8 @@ export function createEffects(scene) {
     let k=trail.count*verticesPerSegment*3;
     const start=k;
     const pressure=landingPowderPressure(s);
-    const halfWidth=.045+Math.abs(s.steer || 0)*.04+(s.braking ? .025 : 0)+(s.landingSkid || 0)*.1+pressure*.23;
+    // Grooves match the powder skis' 8–13 cm width, laid under each ski.
+    const halfWidth=.058+Math.abs(s.steer || 0)*.04+(s.braking ? .025 : 0)+(s.landingSkid || 0)*.1+pressure*.23;
     const bermWidth=.042+pressure*.14;
     // One terrain normal per segment is enough for these thin strips.
     const cx=(from.x+to.x)/2,cs=(from.s+to.s)/2;
@@ -105,8 +107,8 @@ export function createEffects(scene) {
       const lower=strip===-1 ? -halfWidth-bermWidth : strip===0 ? -halfWidth : halfWidth;
       const upper=strip===-1 ? -halfWidth : strip===0 ? halfWidth : halfWidth+bermWidth;
       const point=(state,w)=>{
-        const x=state.x+Math.cos(state.heading)*(side*.32+w);
-        const z=state.s+Math.sin(state.heading)*(side*.32+w);
+        const x=state.x+Math.cos(state.heading)*(side*SNOW_SKI_OFFSET+w);
+        const z=state.s+Math.sin(state.heading)*(side*SNOW_SKI_OFFSET+w);
         return [x,groundHeight(x,z)+(strip===0 ? .025 : .047+pressure*.07),-z];
       };
       const a=point(from,lower),b=point(from,upper),c=point(to,lower),d=point(to,upper);

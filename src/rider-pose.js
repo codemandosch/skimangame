@@ -2,6 +2,8 @@ import { Vector3, Quaternion, Euler, MathUtils } from "three";
 import { wipeoutMotion } from "./wipeout-pose.js";
 const v = (x = 0, y = 0, z = 0) => new Vector3(x, y, z);
 const damp = (a, b, k, dt) => MathUtils.lerp(a, b, 1 - Math.exp(-k * dt));
+// Each ski's distance from the rider's centreline in the relaxed on-snow stance.
+export const SNOW_SKI_OFFSET = 0.16;
 
 // Two-bone IK: preserve limb lengths, bend toward a pole, and clamp unreachable targets.
 export function solveLimb(start, target, pole, upper, lower) {
@@ -258,7 +260,7 @@ export function updateRiderPose(p, s, dt) {
   for (let i = 0; i < 2; i++) {
     const side = i ? 1 : -1;
     const position = v(
-      side * (MathUtils.lerp(0.34, 0.16, snow) + Math.abs(lean) * 0.035),
+      side * (MathUtils.lerp(0.34, SNOW_SKI_OFFSET, snow) + Math.abs(lean) * 0.035),
       // Leave room below the pelvis for a squat instead of folding boots
       // up to hip height and forcing the knees out beside the torso.
       skiRear * (i ? 0.5 : 0.44),

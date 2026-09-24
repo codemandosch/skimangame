@@ -1,9 +1,11 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-// The physically narrow asset loses its silhouette when the chase camera looks
-// almost straight down the ski. Give it a little more cross-slope presence
-// without changing its length, thickness, binding position, or side profile.
-export const GAMEPLAY_SKI_WIDTH_SCALE = 1.6;
+// The asset is only 4 cm wide underfoot and loses its silhouette when the chase
+// camera looks almost straight down the ski. Widen it into a powder ski (about
+// 8 cm underfoot, 13 cm at the tips) without changing its length, thickness,
+// binding position, or side profile.
+export const GAMEPLAY_SKI_WIDTH_SCALE = 2.08;
+// Height of the ski base above its pose frame, where the boots are placed.
 export const GAMEPLAY_SKI_CLEARANCE = 0.12;
 
 export function hideProceduralSkiBoots(parts) {
