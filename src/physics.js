@@ -85,6 +85,7 @@ export function createState() {
     daffyExtended: false,
     daffyCompleted: false,
     airtime: 0,
+    flightSettle: 0,
     airHeight: 0,
     score: 0,
     ...createScoringState(),
@@ -155,6 +156,7 @@ function launch(s, vy, flipInput = 0, spinInput = 0, frame = riderFrame(s), upwa
   // Ordinary pops are capped; the spine can redirect existing approach momentum.
   s.vy = Math.min(upwardLimit, vy);
   s.airtime = 0;
+  s.flightSettle = 0;
   s.railPop = false;
   s.railSpinHeld = false;
   s.spin = 0;
@@ -381,6 +383,8 @@ function updateAerial(s, input, dt) {
     }
     const flipInput = clamp(input.flip || 0, -1, 1);
     const pitchInput = clamp(input.pitch || 0, -1, 1);
+    // The body only settles toward level while the player leaves pitch alone.
+    if (!flipInput && !pitchInput) s.flightSettle = (s.flightSettle || 0) + dt;
     const targetFlipSpeed = flipSpeed(Math.max(Math.abs(spinInput), Math.abs(s.spinVelocity) / SPIN_SPEED));
     // A small takeoff grace window accommodates a key pressed just after
     // leaving the lip. Once set, even an immediate reversal uses air torque.

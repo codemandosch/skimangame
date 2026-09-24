@@ -1,9 +1,10 @@
 import { Euler, Quaternion, Vector3 } from 'three';
 import { riderRotation } from './aerial-rotation.js';
+import { flightFrame } from './rider-frame.js';
 
-// Trick rotation beyond this angle from the takeoff attitude cannot be
-// absorbed. Yaw never counts: sideways skis are still flat on the snow.
-export const LANDING_TILT_LIMIT = 60 * Math.PI / 180;
+// Beyond this angle between the body's axis and the snow normal the skis
+// cannot bite. Yaw never counts: sideways skis are still flat on the snow.
+export const LANDING_TILT_LIMIT = 65 * Math.PI / 180;
 // Past this, against the snow, the rider arrives head-first and tumbles.
 const TUMBLE_TILT = 125 * Math.PI / 180;
 
@@ -18,19 +19,14 @@ const angle = cos => Math.acos(Math.max(-1, Math.min(1, cos)));
 // frame the renderer switches to on contact; `bodyNormal` is the snow normal
 // seen from the rider's body: -z is toward the chest, +x toward the right.
 export function landingAttitude(s, ground) {
-  const flight = s.takeoffFrame ?? ground;
+  const flight = s.airborne ? flightFrame(s) : ground;
   world.setFromEuler(euler.set(flight.pitch, s.heading || 0, flight.roll))
     .multiply(riderRotation(s, new Quaternion()));
   frame.setFromEuler(euler.set(ground.pitch, s.heading || 0, ground.roll));
   normal.set(0, 1, 0).applyQuaternion(frame);
   up.set(0, 1, 0).applyQuaternion(world);
-  const trickUp = new Vector3(0, 1, 0).applyQuaternion(riderRotation(s, new Quaternion()));
   return {
-    // The flight keeps its takeoff attitude, so riding off a steep lip with
-    // neutral input stays clean; only the player's rotation is judged.
-    tilt: angle(trickUp.y),
-    // The visible angle against the landing snow chooses how the rider falls.
-    slopeTilt: angle(up.dot(normal)),
+    tilt: angle(up.dot(normal)),
     bodyNormal: normal.clone().applyQuaternion(world.clone().invert()),
     // What was on screen at impact, expressed in the snow frame, so the fall
     // starts from it instead of snapping upright.
@@ -40,7 +36,7 @@ export function landingAttitude(s, ground) {
 
 // Pick the fall that matches where the body was leaning when it hit.
 export function chooseWipeout(attitude) {
-  const { slopeTilt: tilt, bodyNormal: n } = attitude;
+  const { tilt, bodyNormal: n } = attitude;
   const across = Math.abs(n.x), along = Math.abs(n.z);
   // The body falls away from the snow normal: normal toward the chest means
   // the rider was leaning back; toward the right side means leaning left.
