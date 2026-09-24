@@ -30,29 +30,42 @@ test('summit view is raised and looks down the selected face', () => {
   }
 });
 
-test('summit terminal roof clears the skier and camera when skating down the lift side', () => {
+test('the summit station leaves the ski path open to the skier and follow camera', () => {
   const scene=new THREE.Scene();createSkiLift(scene);
   const station=scene.getObjectByName('Summit lift terminal');
   scene.updateMatrixWorld(true);
-  const roof=station.children.find(m=>m.geometry?.type==='BoxGeometry' && m.geometry.parameters.width===12.6);
-  const box=new THREE.Box3().setFromObject(roof);
-  assert.ok(box.min.y>groundHeight(0,0)+12, 'ceiling above summit arrivals');
-  const layout=getLiftLayout();let underRoof=false;
+  const layout=getLiftLayout();
+  const lateralOf=v=>liftCoordinates(layout,v.x,-v.z).lateral;
+  // Pylons stand entirely outside the 13 m deck.
+  const pylons=station.children.filter(m=>m.name==='Station pylon');
+  assert.equal(pylons.length,2);
+  for(const pylon of pylons) {
+    const position=pylon.geometry.attributes.position,v=new THREE.Vector3();
+    for(let i=0;i<position.count;i+=9)
+      assert.ok(Math.abs(lateralOf(pylon.localToWorld(v.fromBufferAttribute(position,i))))>6.5,'pylon clear of the deck');
+  }
+  // Only the yoke and drive head span the path: skier and camera stay clear.
+  const overhead=['Station yoke','Drive head'].map(name=>{
+    const object=station.getObjectByName(name);assert.ok(object,name);
+    return new THREE.Box3().setFromObject(object).expandByScalar(.6);
+  });
+  let underStation=false;
   for(const offset of [-.08,0,.08]) {
     const state=createState();prepareRun(state);state.heading=layout.heading+offset;
     for(let i=0;i<400;i++) {
       step(state,{skate:true},1/120);
       const {u,lateral}=liftCoordinates(layout,state.x,state.s);
+      const {position}=mountainCameraTargets(state);
+      const camera=new THREE.Vector3(position.x,position.y,position.z);
+      for(const box of overhead)assert.ok(!box.containsPoint(camera),'follow camera never enters the station');
       if(Math.abs(u)<6 && Math.abs(lateral)<6.5) {
-        underRoof=true;
-        assert.ok(state.y+3<box.min.y,'head stays beneath the roof');
-        const {position}=mountainCameraTargets(state);
-        assert.ok(position.y+1<box.min.y,'follow camera clears the ceiling');
+        underStation=true;
+        for(const box of overhead)assert.ok(state.y+3<box.min.y,'head passes beneath the yoke');
       }
       if(u>10)break;
     }
   }
-  assert.equal(underRoof,true);
+  assert.equal(underStation,true);
   scene.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
 });
 

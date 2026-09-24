@@ -4,6 +4,7 @@ import { createState, step, respawn } from "./physics.js";
 import { keyboardInput, releaseKey } from "./controls.js";
 import { prepareRun, prepareParkRun, startRun } from './run-start.js';
 import { createWorld } from "./world.js";
+import { createRenderPipeline } from "./render-pipeline.js";
 import { createSkier } from "./skier.js";
 import { createEffects, createAudio } from "./effects.js";
 import { createRadio } from "./radio.js";
@@ -52,11 +53,12 @@ try {
 } catch {}
 $("best").textContent = best.toLocaleString();
 const scene = new THREE.Scene();
+// A 0.5 m near plane keeps depth precision for the kilometre-scale scenery.
 const camera = new THREE.PerspectiveCamera(
   64,
   innerWidth / innerHeight,
-  0.1,
-  10000,
+  0.5,
+  30000,
 );
 let renderer;
 try {
@@ -70,12 +72,9 @@ try {
     "<h2>WEBGL IS UNAVAILABLE</h2><p>Enable hardware acceleration in your browser, then reload.</p>";
   throw error;
 }
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.65));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.03;
+const pipeline = createRenderPipeline(renderer, scene, camera);
 const world = createWorld(scene),
   skier = createSkier(scene),
   effects = createEffects(scene),
@@ -246,7 +245,7 @@ document.addEventListener('click', (event) => {
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  pipeline.setSize(innerWidth, innerHeight);
 });
 
 function cameraTargets() {
@@ -405,18 +404,29 @@ function frame(time) {
     camera.rotateZ(-state.steer * 0.016);
   }
   skier.update(state, dt);
-  world.update(state);
+  world.update(state, camera, dt);
+  pipeline.setSun(...world.sunFlare(camera));
   effects.update(state, dt);
   audio.update(state);
   if (time - lastUi > 50) {
     updateUI();
     lastUi = time;
   }
-  renderer.render(scene, camera);
+  pipeline.render(dt);
   requestAnimationFrame(frame);
 }
 snapCamera();
 updateUI();
-renderer.render(scene, camera);
-$("loading").classList.add("hidden");
+world.update(state, camera, 0);
+// Reveal the mountain once its scenery and shaders are ready, so the ranges
+// and forests never pop in behind the menu. A slow network still gets in.
+Promise.race([
+  world.ready.then(() => renderer.compileAsync(scene, camera)),
+  new Promise(resolve => setTimeout(resolve, 9000)),
+]).catch(() => {}).finally(() => {
+  world.update(state, camera, 0);
+  pipeline.render(0);
+  $("loading").classList.add("leaving");
+  setTimeout(() => $("loading").classList.add("hidden"), 750);
+});
 requestAnimationFrame(frame);

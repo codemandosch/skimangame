@@ -1,4 +1,4 @@
-import { KICKERS, PARK_LINE, featureCoordinates } from './blackridge.js';
+import { KICKERS, PARK_LINE, lipCoordinates } from './blackridge.js';
 import { parkWeight } from './park-line.js';
 
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
@@ -19,7 +19,7 @@ export function kickerShadingAt(x,s) {
   let shade=0,crest=0;
   const features=parkWeight(x,s)>.5 ? PARK_LINE.jumps : cells.get(`${Math.floor(x/cellSize)},${Math.floor(s/cellSize)}`) || [];
   for(const f of features) {
-    const {u,v}=featureCoordinates(f,x,s),across=Math.abs(v)/f.width;
+    const {u,v}=lipCoordinates(f,x,s),across=Math.abs(v)/f.width;
     if(u<-f.length || u>20 || across>1.15)continue;
     const approach=smooth(-f.length,-3,u),end=1-smooth(10,20,u);
     const shoulder=smooth(.45,.85,across)*(1-smooth(.85,1.15,across));

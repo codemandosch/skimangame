@@ -1,4 +1,4 @@
-import { groundHeight, gradientAt, rampAt, featureCoordinates, atBase, treeCollision } from './blackridge.js';
+import { groundHeight, gradientAt, rampAt, lipCoordinates, atBase, treeCollision } from './blackridge.js';
 import { groundContact } from './ground-contact.js';
 import { applySkating } from './skating.js';
 import { riderFrame } from './rider-frame.js';
@@ -35,7 +35,7 @@ export function stepMountain(s,input,dt,{launch,resolveLanding,updateAerial,even
     dir=directionAt(s.heading);
     const feature=rampAt(s.x,s.s);
     const aligned=feature && dir.x*feature.dx+dir.s*feature.ds>.55;
-    const local=feature && featureCoordinates(feature,s.x,s.s);
+    const local=feature && lipCoordinates(feature,s.x,s.s);
     const onSpine=feature?.kind==='quarterpipe' && aligned && local.u<=0;
     const incomingSlope=onSpine && local.u>-6
       ? (oldY-groundHeight(s.x-dir.x*2,s.s-dir.s*2))/2 : g.x*dir.x+g.s*dir.s;

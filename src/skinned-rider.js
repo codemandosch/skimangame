@@ -27,7 +27,7 @@ export function createSkinnedRiderRig(model, space) {
       object.frustumCulled = false;
     }
   });
-  for (const name of ["Hip", "Head", ...["L", "R"].flatMap(side =>
+  for (const name of ["Hip", "Spine01", "Spine02", "Head", ...["L", "R"].flatMap(side =>
     ["Thigh", "Calf", "Foot", "ToeBase", "Upperarm", "Forearm", "Hand"].map(part => `${side}_${part}`))]) {
     if (!bones[name]) throw new Error(`Skier skeleton is missing ${name}`);
   }
@@ -76,6 +76,13 @@ export function createSkinnedRiderRig(model, space) {
       space.updateWorldMatrix(true, true);
       bones.Hip.position.copy(bones.Hip.parent.worldToLocal(space.localToWorld(pose.hips.clone())));
       rotate("Hip", pose.torsoQuaternion.clone().multiply(rest.Hip.rotation));
+      // Curl the spine over the hips so a reaching grab bends the back
+      // instead of stretching a rigid torso toward the ski.
+      for (const [name, share] of [["Spine01", 0.5], ["Spine02", 1]]) {
+        rotate(name, pose.torsoQuaternion.clone()
+          .multiply(new Quaternion().setFromEuler(new Euler(pose.spineCurl * share, 0, pose.spineBend * share)))
+          .multiply(rest[name].rotation));
+      }
 
       const feet = [], hands = [];
       for (let i = 0; i < 2; i++) {
@@ -85,11 +92,11 @@ export function createSkinnedRiderRig(model, space) {
         const footName = `${prefix}_Foot`;
         const footTarget = vector(0, rest[footName].point.y + 0.17, 0.045)
           .applyQuaternion(ski.quaternion).add(ski.position);
-        const kneePole = vector(side * (0.55 - pose.mute * 0.3) + pose.hips.x * 0.9,
-          0.6 + pose.mute * 0.2 + (pose.tail + pose.blunt) * 0.9, -1.1);
-        kneePole.lerp(pose.legs[i].kneePole, pose.daffy);
-        kneePole.lerp(pose.legs[i].kneePole, pose.japan);
-        kneePole.lerp(pose.legs[i].kneePole, pose.bow);
+        const kneePole = vector(side * 0.55 + pose.hips.x * 0.9,
+          0.6 + (pose.tail + pose.blunt) * 0.9, -1.1);
+        // Shaped grabs aim the knees themselves; the rest keep the rig's stance.
+        kneePole.lerp(pose.legs[i].kneePole,
+          Math.min(1, pose.mute + pose.octo + pose.daffy + pose.japan + pose.bow));
         solve(legs[i], footTarget, kneePole);
         const toeDirection = rest[`${prefix}_ToeBase`].point.clone().sub(rest[footName].point);
         const footYaw = Math.atan2(toeDirection.x, -toeDirection.z);
@@ -106,7 +113,7 @@ export function createSkinnedRiderRig(model, space) {
           .applyQuaternion(pose.torsoQuaternion.clone().slerp(pose.arms[i].gripQuaternion, grip));
         const targetPalm = pose.arms[i].hand.clone();
         const targetWrist = targetPalm.clone().sub(palmOffset);
-        const forearmRotation = solve(arms[i], targetWrist, vector(side * 1.1 + pose.lean * 0.15, 1.3, 0.3));
+        const forearmRotation = solve(arms[i], targetWrist, pose.arms[i].elbowPole);
         const bindPalm = rest[handName].point.clone().sub(rest[`${prefix}_Forearm`].point).normalize();
         const handRotation = new Quaternion().setFromUnitVectors(bindPalm, palmOffset.clone().normalize())
           .multiply(rest[handName].rotation);

@@ -260,6 +260,31 @@ export function featureCoordinates(f, x, s) {
   const ox = x - f.x, os = s - f.s;
   return { u: ox * f.dx + os * f.ds, v: ox * f.ds - os * f.dx };
 }
+// Natural lips are not ruler-straight: each crest bows forward or back toward
+// its ends and wanders a little, seeded by its position so it never changes.
+// The offset is zero on the centre line, where authored approaches aim.
+// Lift and park kickers stay straight to line up with cables and rails.
+function lipCurve(f) {
+  if (f.lipCurve !== undefined) return f.lipCurve;
+  const hash = k => { const n = Math.sin(f.x * 12.9898 + f.s * 78.233 + k * 37.719) * 43758.5453; return n - Math.floor(n); };
+  f.lipCurve = f.lift || f.parkLine ? null : {
+    bow: (hash(1) - .5) * .24 * f.width,
+    wobble: (.012 + hash(2) * .028) * f.width,
+    waves: 1.2 + hash(3) * 1.6,
+    phase: hash(4) * Math.PI * 2,
+  };
+  return f.lipCurve;
+}
+// Feature coordinates measured from the curved crest (u = 0 on the lip).
+export function lipCoordinates(f, x, s) {
+  const c = featureCoordinates(f, x, s), curve = lipCurve(f);
+  if (!curve) return c;
+  const a = Math.max(-1, Math.min(1, c.v / f.width));
+  c.u -= curve.bow * a * a + curve.wobble * Math.sin(Math.PI * curve.waves * a + curve.phase) * Math.abs(a);
+  return c;
+}
+// Polynomial smooth minimum: rounds the crease where ramp and lip top meet.
+const smoothMin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k / 4; };
 // Spatial bins keep terrain generation and physics proportional to local detail.
 const bins = new Map();
 const BIN = 320;
@@ -275,7 +300,12 @@ for (const f of FEATURES) {
     }
 }
 const nearby = (x,s) => bins.get(`${Math.floor(x / BIN)},${Math.floor(s / BIN)}`) || [];
-function naturalTerrainHeight(x, s) {
+// Seeded placement (park fit, summit deck, trees, logs) searches the terrain
+// with rejection tests, so any reshaping would reshuffle it. Placement uses
+// the original straight lips; play and rendering switch to the rounded,
+// curved lips once everything is placed (see the end of this module).
+let placementTerrain = true;
+function naturalTerrainHeight(x, s, original = placementTerrain) {
   const r = Math.hypot(x,s), a = Math.atan2(x,s), q = mountainFraction(x,s);
   if (q >= 1.13) return BASE_HEIGHT - 18;
   // The mountain profile outside the compact summit platform.
@@ -305,22 +335,33 @@ function naturalTerrainHeight(x, s) {
   h += 130 * liftShoulder * liftFill;
   let smallDetail = 0;
   for (const f of nearby(x,s)) {
-    const {u,v} = featureCoordinates(f,x,s);
+    const {u,v} = original ? featureCoordinates(f,x,s) : lipCoordinates(f,x,s);
     if(u < -f.length || u > f.catchLength+f.recovery || Math.abs(v) > f.width*1.8) continue;
     const shoulder = smooth((f.width-Math.abs(v))/(f.width*.42));
     let offset;
-    if(u <= 0) {
+    if (original) {
+      // The original straight, creased lips: see placementTerrain above.
       const t = clamp((u+f.length)/f.length);
-      offset = f.height*t*t*shoulder;
+      offset = u <= 0 ? f.height*t*t*shoulder : f.height*(1-smooth(u/10))*shoulder;
     } else {
+      // The ramp (continued past the crest) and the lip top meet in a crease
+      // that the two-metre triangles would chew into teeth. A smooth minimum
+      // rounds it over a few metres. Raising the profile by what the rounding
+      // removes keeps every crest at its authored height.
+      const radius = clamp(f.length*.25, 3, 5), rounding = f.height*2/f.length*radius;
+      // Rounding also softens the takeoff slope; steepen the ramp to match.
+      const lift = (f.height + rounding/4)*(1 + .3*radius/f.length), t = Math.max(0,(u+f.length)/f.length);
+      offset = smoothMin(lift*t*t, lift*(1-smooth(u/14)), rounding)*shoulder;
+    }
+    if(u > 0) {
       const basinWidth = f.width * (1 + .65 * smooth(u/150));
       const basin = smooth((basinWidth-Math.abs(v))/(basinWidth*.4));
-      offset = f.height*(1-smooth(u/10))*shoulder;
       // These catches lie under the lift. Fill most of their deep bowls as well
       // as the broad fold; otherwise their side walls still block traverses.
       const liftCatch = f.name === 'HANG TIME' || f.name === 'GLACIER DRIFT';
       const drop = f.drop * (liftCatch ? .25 : 1);
-      offset -= drop*smooth(u/14)*(1-smooth((u-f.catchLength)/f.recovery))*basin;
+      const onset = original ? smooth(u/14) : smooth((u-1)/18);
+      offset -= drop*onset*(1-smooth((u-f.catchLength)/f.recovery))*basin;
     }
     if (f.small || f.snowfield) smallDetail += offset;
     else h += offset;
@@ -337,8 +378,23 @@ function naturalTerrainHeight(x, s) {
   return SUMMIT_HEIGHT*(1-summitBlend)+slopeHeight*summitBlend;
 }
 const summitTerminalHeight=naturalTerrainHeight(lift.top.x,lift.top.s);
+// Timber rests on ledges shaped by the original lips. Within a few metres of
+// each log the reshaped lips blend back to that shape, so no trunk is buried.
+const logShieldBins = new Map();
+function logShield(x,s) {
+  let weight=0;
+  for(const log of logShieldBins.get(`${Math.floor(x/64)},${Math.floor(s/64)}`) || []) {
+    const ox=x-log.x,os=s-log.s,u=ox*log.dx+os*log.ds,v=ox*log.ds-os*log.dx;
+    weight=Math.max(weight,(1-smooth((Math.abs(v)-5)/8))*smooth((u+22)/10)*(1-smooth((u-log.length-6)/10)));
+  }
+  return weight;
+}
 function terrainHeight(x,s) {
-  const native=naturalTerrainHeight(x,s);
+  let native=naturalTerrainHeight(x,s);
+  if(!placementTerrain) {
+    const shield=logShield(x,s);
+    if(shield>0)native+=(naturalTerrainHeight(x,s,true)-native)*shield;
+  }
   const ox=x-lift.top.x,os=s-lift.top.s;
   const along=ox*lift.dx+os*lift.ds,across=ox*lift.ds-os*lift.dx;
   // The unloading deck is part of the terrain, so skis, landings and the
@@ -414,7 +470,7 @@ export function rampAt(x,s) {
     return PARK_LINE.takeoffs.find(f => x >= f.x - f.length && x <= f.x + 12 && Math.abs(s) < f.width * .9);
   }
   const candidates=nearby(x,s);
-  const onRamp=f=>{ const {u,v}=featureCoordinates(f,x,s); return u >= -f.length && u <= 12 && Math.abs(v) < f.width*.9; };
+  const onRamp=f=>{ const {u,v}=lipCoordinates(f,x,s); return u >= -f.length && u <= 12 && Math.abs(v) < f.width*.9; };
   return candidates.find(f=>f.lift && onRamp(f)) || candidates.find(onRamp);
 }
 export function atBase(x,s,y) { return mountainFraction(x,s) >= .97 && y < BASE_HEIGHT+95; }
@@ -458,4 +514,18 @@ for(const log of LOGS.filter(log=>log.kind==='fallen')) {
       logRidgeBins.get(key).push(log);
     }
 }
+for(const log of LOGS) {
+  const reach=log.length+30,x1=log.x-log.dx*32,s1=log.s-log.ds*32,x2=log.x+log.dx*reach,s2=log.s+log.ds*reach;
+  for(let ix=Math.floor((Math.min(x1,x2)-14)/64);ix<=Math.floor((Math.max(x1,x2)+14)/64);ix++)
+    for(let iz=Math.floor((Math.min(s1,s2)-14)/64);iz<=Math.floor((Math.max(s1,s2)+14)/64);iz++) {
+      const key=`${ix},${iz}`;
+      if(!logShieldBins.has(key))logShieldBins.set(key,[]);
+      logShieldBins.get(key).push(log);
+    }
+}
+// Placement is done: from here on, terrain uses the rounded, curved lips.
+placementTerrain = false;
 heightCache.clear();
+// Trees stand on the snow as it is now rendered and ridden.
+for (const tree of TREES) tree.y = groundHeight(tree.x, tree.s);
+

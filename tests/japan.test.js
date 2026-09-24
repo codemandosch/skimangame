@@ -4,20 +4,23 @@ import { createState, step, resolveLanding, trickValue } from "../src/physics.js
 import { createRiderPose, updateRiderPose } from "../src/rider-pose.js";
 import { keyboardInput, releaseKey } from "../src/controls.js";
 
-test("Japan extends one leg and grips underneath the opposite tucked ski behind the hips", () => {
+test("Japan pokes one leg forward and grips the inside edge of the ski tucked under the seat", () => {
   const state = { ...createState(), airborne: true, airtime: 0.7, grab: 5 };
   const pose = createRiderPose();
   for (let frame = 0; frame < 240; frame++) updateRiderPose(pose, state, 1 / 120);
   const [extended, tucked] = pose.legs;
   assert.ok(extended.hip.distanceTo(extended.foot) > 0.8);
+  assert.ok(pose.skis[0].position.z < pose.hips.z - 0.5, "the straight leg pokes forward");
   assert.ok(tucked.hip.distanceTo(tucked.foot) < 0.5);
+  assert.ok(tucked.foot.z > pose.hips.z + 0.1 && tucked.foot.y > pose.hips.y - 0.25,
+    "the bent leg pulls its boot up under the seat");
   const hand = pose.arms[0];
   assert.ok(hand.hand.distanceTo(hand.grabAnchor) < 0.012);
-  assert.ok(hand.hand.z > pose.hips.z + 0.3, "opposite hand must reach behind");
   const localGrip = hand.grabAnchor.clone().sub(pose.skis[1].position)
     .applyQuaternion(pose.skis[1].quaternion.clone().invert());
-  assert.ok(localGrip.y < 0, "hold the underside of the ski");
-  assert.ok(Math.abs(localGrip.z) < 0.05, "hold beneath the binding, not the tail");
+  assert.ok(localGrip.x < 0, "hold the inside edge of the tucked ski");
+  assert.ok(Math.abs(localGrip.z) < 0.4, "hold beside the boot, not the tip or tail");
+  assert.ok(pose.arms[1].hand.y > pose.arms[1].shoulder.y + 0.2, "the free hand goes up");
   for (let i = 0; i < 2; i++) assert.ok(pose.legs[i].foot.distanceTo(pose.skis[i].boot) < 1e-6);
   state.grab = 0;
   const previousHand = hand.hand.clone();

@@ -369,6 +369,7 @@ export function createSkier(scene) {
       }
       if (skinnedRig) {
         const contacts = skinnedRig.update(pose, s);
+        rider.contacts = contacts;
         for (let i = 0; i < 2; i++) arms[i].glove.position.copy(contacts.hands[i].actual);
       }
       shadow.position.set(s.x, groundHeight(s.x, s.s) + 0.045, -s.s);
