@@ -25,6 +25,8 @@ export function wipeoutMotion(p, s, remaining) {
     face: kind === 'faceplant' ? weight : 0,
     slam: kind === 'sideslam' ? weight : 0,
     tuck: tumbling ? weight * (1 - settled) : 0,
+    // Limbs go slack a beat after the body hits and flop onto the snow.
+    limp: weight * MathUtils.smoothstep(elapsed, 0.1, 0.45),
     side: crash?.side || 1,
   };
   if (!crash) return { shape, active: false };

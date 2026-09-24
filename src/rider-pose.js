@@ -66,7 +66,7 @@ export function createRiderPose() {
     wipeout: 0,
     // Wipeout body shapes (back, face, slam, tuck) and the whole-body motion
     // that replaces the aerial rotation while the rider is down.
-    crash: { back: 0, face: 0, slam: 0, tuck: 0, side: 1 },
+    crash: { back: 0, face: 0, slam: 0, tuck: 0, limp: 0, side: 1 },
     crashActive: false,
     crashQuaternion: new Quaternion(),
     crashPosition: v(0, 1, 0),
@@ -232,9 +232,9 @@ export function updateRiderPose(p, s, dt) {
   p.hips.lerp(v(0, 0.36, -0.3), crash.face);
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -1.55, crash.face);
   // Side slam: sit low on the downhill hip and lay the shoulder on the snow.
-  p.hips.lerp(v(crash.side * 0.1, 0.55, 0.12), crash.slam);
+  p.hips.lerp(v(crash.side * 0.2, 0.55, 0.12), crash.slam);
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.25, crash.slam);
-  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, -crash.side * 0.1, crash.slam);
+  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, -crash.side * 0.2, crash.slam);
   // Tumbling: balled up with the knees pulled in.
   p.hips.lerp(v(0, 0.62, 0.05), crash.tuck);
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.95, crash.tuck);
@@ -303,6 +303,14 @@ export function updateRiderPose(p, s, dt) {
     rotation.x = MathUtils.lerp(rotation.x, i ? 0.9 : 0.1, skiBow);
     rotation.y = MathUtils.lerp(rotation.y, i ? -0.25 : 0, skiBow);
     rotation.z = MathUtils.lerp(rotation.z, i ? 0.1 : -1.25, skiBow);
+    // Side slam: the top leg goes slack and drops over beside the bottom
+    // one, knee drawn forward, instead of staying stacked in the air.
+    if (side !== crash.side) {
+      const slack = crash.slam * crash.limp;
+      position.x = MathUtils.lerp(position.x, crash.side * 0.24, slack);
+      position.y += 0.12 * slack;
+      position.z -= 0.42 * slack;
+    }
     // Faceplant: the tips dig in and the tails kick up behind the rider.
     rotation.x -= 0.3 * crash.face;
     position.y += 0.44 * crash.face;
@@ -329,6 +337,8 @@ export function updateRiderPose(p, s, dt) {
     kneePole.lerp(i ? v(0.35, 0.65, -0.9) : v(-0.7, 0.95, -0.5), skiBow);
     kneePole.lerp(v(side * 0.3, -1, 0.3), crash.face);
     kneePole.lerp(v(side * 0.15, 1.3, -1.2), crash.tuck);
+    // Both slam knees sag toward the snow side, the top one resting on the bottom.
+    kneePole.lerp(v(crash.side * (side === crash.side ? 0.25 : 0.6), 0.5, -1.1), crash.slam);
     const leg = solveLimb(
       hip,
       boot,
@@ -394,10 +404,14 @@ export function updateRiderPose(p, s, dt) {
     target.lerp(v(side * 0.5, 0.05, -1.25), crash.face);
     // One arm catches the fall on the slam side; the other flails overhead.
     target.lerp(side === crash.side ? v(side * 0.45, 0.9, -0.3) : v(side * 0.35, 1.45, 0.25), crash.slam);
+    // Then the free arm flops down across the chest onto the snow.
+    if (side !== crash.side) target.lerp(v(crash.side * 0.32, 0.55, -0.5), crash.slam * crash.limp);
     target.lerp(v(side * 0.3, 0.55, -0.5), crash.tuck);
     const elbowPole = v(side * 1.1 + lean * 0.15, 1.3, 0.3);
     // A raised free arm keeps its elbow out and back rather than flipping.
     if (i === 1) elbowPole.lerp(v(1.4, 0.6, 0.2), raise);
+    // Slam elbows fold along the snow rather than digging into it.
+    elbowPole.lerp(side === crash.side ? v(side * 0.2, 2, 0.3) : v(crash.side * 0.2, 1, -0.8), crash.slam);
     const limb = solveLimb(shoulder, target, elbowPole, 0.42, 0.4);
     p.arms.push({
       shoulder,
