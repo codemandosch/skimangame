@@ -34,7 +34,7 @@ export function createParkLine(nativeHeight, firstIndex) {
   const curvedHeight=radius*(1-Math.cos(lipAngle));
   const quarterpipe={name:'EAST FACE SPINE',kind:'quarterpipe',
     x:1840,s:0,dx:1,ds:0,angle:Math.PI/2,index:firstIndex+jumps.length,
-    length:22,width:70,height:curvedHeight+4*Math.tan(lipAngle),
+    length:22,width:28,deckWidth:70,height:curvedHeight+4*Math.tan(lipAngle),
     lipSlope:Math.tan(lipAngle)-grade,takeoffWidth:16,crestWidth:4,deckLength:112,backLength:120,
     kick:0,drop:0,catchLength:232,recovery:0,parkLine:true,major:false};
   const takeoffs=[...jumps,quarterpipe];
@@ -66,7 +66,9 @@ export function createParkLine(nativeHeight, firstIndex) {
       wall=(q.height+grade*q.deckLength)*(1-(u-q.length-q.deckLength)/q.backLength)**2;
     // A horizontal lip, not a pointed apex; narrow into the spine after takeoff.
     const halfTop=q.crestWidth/2+(q.takeoffWidth-q.crestWidth)/2*(1-smooth((u-q.length)/8));
-    const across=1-clamp((Math.abs(s)-halfTop)/(q.width-halfTop));
+    // The takeoff wall stays narrow; the spine's landing shoulders flare out past the lip.
+    const base=q.width+(q.deckWidth-q.width)*smooth((u-q.length)/12);
+    const across=1-clamp((Math.abs(s)-halfTop)/(base-halfTop));
     height+=wall*across;
     return height;
   }

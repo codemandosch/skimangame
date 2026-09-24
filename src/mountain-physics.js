@@ -25,8 +25,14 @@ export function stepMountain(s,input,dt,{launch,resolveLanding,updateAerial,even
     const gravity=31.05*grade/Math.hypot(1,g.x,g.s);
     // Tucking reduces air resistance; only the slope supplies acceleration.
     const drag=s.tucking ? .0045 : .006;
-    const accel=easeTopSpeed(s.speed, gravity - s.speed*s.speed*drag
+    // The spine wall defies physics: climbing it costs no speed, so the full
+    // approach momentum reaches the lip and carries the skier upward.
+    const wall=rampAt(s.x,s.s);
+    const climbingSpine=wall?.kind==='quarterpipe' && dir.x*wall.dx+dir.s*wall.ds>.55
+      && lipCoordinates(wall,s.x,s.s).u<=0;
+    const resisted=easeTopSpeed(s.speed, gravity - s.speed*s.speed*drag
       - (s.braking ? 30 : .8) - Math.abs(s.steer)*1.5);
+    const accel=climbingSpine ? Math.max(0,resisted) : resisted;
     if(s.started) s.speed=clamp(applySkating(s.speed, s.skating, dt)+accel*dt,0,69);
     // Recovery can outlast its initial timer if the landing line reaches an
     // uphill shoulder. Don't strand a slow skier pointing into that slope.
