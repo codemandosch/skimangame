@@ -24,6 +24,7 @@ const SPIN_SPEED = 4.7 * 1.15;
 const MIXED_FLIP_WEIGHT = 0.6;
 const flipSpeed = spin => FLIP_SPEED * (1 - (1 - MIXED_FLIP_WEIGHT) * Math.min(1, Math.abs(spin)));
 const AIR_SPIN_ACCEL = 4.5;
+const GRAB_SPIN_BOOST = 1.3;
 const AIR_FLIP_ACCEL = 4;
 const ROTATION_RELEASE_DAMPING = 7;
 const TAKEOFF_WINDOW = 0.12;
@@ -402,9 +403,6 @@ function updateAerial(s, input, dt) {
       s.flipVelocity *= Math.exp(-ROTATION_RELEASE_DAMPING * dt);
       if (Math.abs(s.flipVelocity) < 0.01) s.flipVelocity = 0;
     }
-    advanceAerialRotation(s, dt);
-    s.spin += s.spinVelocity * dt;
-    s.flip += s.flipVelocity * dt;
     const wasInDaffy = s.daffyProgress > 0;
     updateDaffy(s, !!input.daffy, dt);
     s.grab = input.daffy || wasInDaffy ? 0 : input.grab || 0;
@@ -412,6 +410,12 @@ function updateAerial(s, input, dt) {
       s.grabTime += dt;
       s.grabs.add(s.grab);
     }
+    // Holding a grab tucks the body and spins faster; spinVelocity itself is
+    // untouched, so letting go returns straight to the current speed.
+    const spinScale = s.grab ? GRAB_SPIN_BOOST : 1;
+    advanceAerialRotation(s, dt, spinScale);
+    s.spin += s.spinVelocity * spinScale * dt;
+    s.flip += s.flipVelocity * dt;
       s.vy -= (COURSE.openWorld ? 30.36 : 25.08) * dt;
     s.y += s.vy * dt;
     updateCombo(s);
