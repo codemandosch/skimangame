@@ -11,6 +11,84 @@
     <title>MAD STEEZ — Freestyle Skiing</title>
   </head>
   <body>
+    <svg class="logo-defs" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="steez-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ff6a4d" />
+          <stop offset=".45" stop-color="#e8212f" />
+          <stop offset="1" stop-color="#8f0a1c" />
+        </linearGradient>
+        <radialGradient id="steez-mist">
+          <stop offset="0" stop-color="#e02d36" stop-opacity=".55" />
+          <stop offset=".6" stop-color="#e02d36" stop-opacity=".18" />
+          <stop offset="1" stop-color="#e02d36" stop-opacity="0" />
+        </radialGradient>
+        <!-- Aerosol grain: roughens edges and flecks the paint so it reads as sprayed, not typeset. -->
+        <filter id="steez-spray" x="-5%" y="-10%" width="110%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7" result="grain" />
+          <feDisplacementMap in="SourceGraphic" in2="grain" scale="3" xChannelSelector="R" yChannelSelector="G" result="rough" />
+          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.5" result="flecks" />
+          <feComposite in="rough" in2="flecks" operator="in" />
+        </filter>
+        <filter id="steez-overspray" x="-20%" y="-40%" width="140%" height="180%">
+          <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="3" result="cloud" />
+          <feDisplacementMap in="SourceGraphic" in2="cloud" scale="60" xChannelSelector="R" yChannelSelector="G" result="blob" />
+          <feGaussianBlur in="blob" stdDeviation="6" result="soft" />
+          <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="11" result="dots" />
+          <feColorMatrix in="dots" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -3 2" result="dotMask" />
+          <feComposite in="soft" in2="dotMask" operator="in" />
+        </filter>
+        <clipPath id="steez-skier-clip"><polygon points="0,0 254,0 254,128 218,240 218,300 0,300" /></clipPath>
+        <clipPath id="steez-face-clip"><use href="#steez-word" /></clipPath>
+        <text id="steez-word" x="258" y="236" textLength="570" lengthAdjust="spacingAndGlyphs">STEEZ</text>
+        <text id="steez-tag" x="300" y="118" textLength="215" lengthAdjust="spacingAndGlyphs">Mad</text>
+        <path id="steez-sparkle" d="M0-14C1.6-4 4-1.6 14 0 4 1.6 1.6 4 0 14-1.6 4-4 1.6-14 0-4-1.6-1.6-4 0-14z" />
+        <symbol id="mad-steez-logo" viewBox="0 0 900 300">
+          <!-- Paint mist on the wall behind the piece -->
+          <g filter="url(#steez-overspray)">
+            <ellipse cx="560" cy="170" rx="330" ry="95" fill="url(#steez-mist)" />
+            <circle cx="118" cy="150" r="104" fill="url(#steez-mist)" />
+          </g>
+          <image href="/branding/mad-steez-logo-horizontal-v3.png" width="900" height="300" clip-path="url(#steez-skier-clip)" />
+          <g class="steez-word" transform="skewX(-9) translate(34 0)">
+            <!-- White cloud outline around face and 3D block -->
+            <g fill="#f4f1ea" stroke="#f4f1ea" stroke-width="26" stroke-linejoin="round">
+              <use href="#steez-word" /><use href="#steez-word" x="5" y="5" /><use href="#steez-word" x="10" y="10" />
+            </g>
+            <!-- 3D block -->
+            <g fill="#1a0509" stroke="#1a0509" stroke-width="12" stroke-linejoin="round">
+              <use href="#steez-word" x="2" y="2" /><use href="#steez-word" x="4" y="4" /><use href="#steez-word" x="6" y="6" />
+              <use href="#steez-word" x="8" y="8" /><use href="#steez-word" x="10" y="10" />
+            </g>
+            <use href="#steez-word" fill="url(#steez-fill)" stroke="#0c0204" stroke-width="10" stroke-linejoin="round" paint-order="stroke" />
+            <!-- Highlight line and shine bars inside the fill -->
+            <g clip-path="url(#steez-face-clip)">
+              <use href="#steez-word" x="-3" y="-3" fill="none" stroke="#ffd9d0" stroke-width="3" opacity=".85" />
+              <g fill="#fff" opacity=".7">
+                <rect x="250" y="150" width="620" height="6" />
+                <rect x="250" y="162" width="620" height="2.5" />
+              </g>
+              <use href="#steez-word" fill="#000" opacity=".35" filter="url(#steez-spray)" />
+            </g>
+          </g>
+          <g class="steez-tag" transform="rotate(-8 400 100)">
+            <use href="#steez-tag" x="5" y="6" fill="#e02d36" stroke="#e02d36" stroke-width="10" stroke-linejoin="round" />
+            <use href="#steez-tag" fill="#f7f5ef" stroke="#0c0204" stroke-width="9" stroke-linejoin="round" paint-order="stroke" />
+            <!-- Crown -->
+            <path d="M290 32l6-26 14 17 12-22 10 22 15-15 -3 26z" fill="none" stroke="#f7f5ef" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+          </g>
+          <g fill="#fff">
+            <use href="#steez-sparkle" transform="translate(858 122)" />
+            <use href="#steez-sparkle" transform="translate(834 98) scale(.55)" />
+            <use href="#steez-sparkle" transform="translate(544 60) scale(.7)" />
+          </g>
+          <g fill="#e02d36">
+            <circle cx="236" cy="262" r="4" /><circle cx="250" cy="276" r="2.5" /><circle cx="226" cy="282" r="1.8" />
+            <circle cx="866" cy="212" r="3" /><circle cx="878" cy="226" r="1.6" />
+          </g>
+        </symbol>
+      </defs>
+    </svg>
     <canvas id="game" aria-label="Third-person downhill skiing game"></canvas>
     <div id="vignette"></div>
     <div id="speed-lines"></div>
@@ -99,7 +177,7 @@
     </aside>
     <section id="start-panel" aria-labelledby="start-title">
       <div class="panel start-panel">
-        <img class="menu-logo" src="/branding/mad-steez-logo-horizontal-v3.png" alt="Mad Steez" width="2172" height="724" draggable="false" />
+        <svg class="menu-logo" viewBox="0 0 900 300" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
         <div class="eyebrow">FIND YOUR LINE</div>
         <h2 id="start-title">CHOOSE YOUR LINE.</h2>
         <p><b>← → / J L</b> Turn on the summit<br />Hold <kbd>Ctrl</kbd> to skate and drop in.</p>
@@ -114,7 +192,7 @@
       aria-labelledby="pause-title"
     >
       <div class="panel">
-        <img class="menu-logo" src="/branding/mad-steez-logo-horizontal-v3.png" alt="Mad Steez" width="2172" height="724" draggable="false" />
+        <svg class="menu-logo" viewBox="0 0 900 300" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
         <div class="eyebrow">TAKE A BREATHER</div>
         <h2 id="pause-title">ON HOLD.</h2>
         <p>The mountain can wait.</p>
@@ -172,7 +250,7 @@
         <path class="near" d="M0 300V238l140-46 90 26 170-128 70 58 40-22 150 112 110-58 120 60 90-30 110 44 110-12V300z"/>
         <path class="snow" d="M400 90l70 58 40-22 30 22-40 4-34-20-38 26-48-18-60 20 80-70z"/>
       </svg>
-      <img class="loading-logo" src="/branding/mad-steez-logo-horizontal-v3.png" alt="Mad Steez" width="2172" height="724" draggable="false" />
+      <svg class="loading-logo" viewBox="0 0 900 300" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
       <h2>FINDING FRESH SNOW<span>…</span></h2>
       <div class="loading-bar" aria-hidden="true"><i></i></div>
     </div>
