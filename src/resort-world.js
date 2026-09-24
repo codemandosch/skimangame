@@ -130,6 +130,22 @@ export function roadGeometry(road,width=road.width,lift=.12) {
   geometry.setIndex(indices);geometry.computeVertexNormals();return geometry;
 }
 
+// World positions of the cabin chimneys, for wood-smoke plumes.
+export function chimneyTops() {
+  const tops=[];
+  for(const town of RESORT.towns)for(const b of town.buildings) {
+    if(b.kind!=='cabin')continue;
+    const dx=b.x-town.x,ds=b.s-town.s;
+    const x=dx*Math.cos(town.angle)-ds*Math.sin(town.angle);
+    const z=-(dx*Math.sin(town.angle)+ds*Math.cos(town.angle));
+    const lx=x+b.width*.27,lz=z+b.depth*.15,y=b.floor+b.floors*3.25+4.3;
+    // Inverse of the village root's rotation.y = -angle, then its translation.
+    const c=Math.cos(-town.angle),sn=Math.sin(-town.angle);
+    tops.push({x:town.x+lx*c+lz*sn,y,z:-town.s-lx*sn+lz*c});
+  }
+  return tops;
+}
+
 export function createResortWorld(scene) {
   const root=new THREE.Group();root.name='Mountain base ski villages';
   const materials={wood0:material('#735047'),wood1:material('#947057'),wood2:material('#584339'),

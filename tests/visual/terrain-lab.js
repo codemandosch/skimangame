@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createRenderPipeline } from '../../src/render-pipeline.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FEATURES, groundHeight } from '../../src/blackridge.js';
 import { createWorld } from '../../src/world.js';
@@ -6,8 +7,9 @@ import { createWorld } from '../../src/world.js';
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,30000);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.03;
+
 document.body.append(renderer.domElement);
+const pipeline=createRenderPipeline(renderer,scene,camera);
 const controls=new OrbitControls(camera,renderer.domElement),world=createWorld(scene);
 let state;
 function show(name) {
@@ -27,5 +29,5 @@ document.querySelector('#wide').onclick=()=>{
   document.querySelector('#status').textContent='Shorter, staggered ridges across the mountain · drag to orbit';
 };
 show('CROWN FALL');
-function frame(){world.update(state);renderer.render(scene,camera);requestAnimationFrame(frame);}frame();
-window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+function frame(){world.update(state,camera);pipeline.render();requestAnimationFrame(frame);}frame();
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();pipeline.setSize(innerWidth,innerHeight);});

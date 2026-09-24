@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PARK_LINE, HANDRAILS, groundHeight } from './blackridge.js';
 import { logPoint } from './log-layout.js';
 
@@ -17,13 +18,37 @@ export function buildHandrailGeometry(rail) {
   return g;
 }
 
+// Hundreds of posts, ticks and flags share a handful of materials: bake their
+// transforms and draw one merged mesh per material instead.
+function batchByMaterial(group) {
+  const byMaterial=new Map();
+  group.updateMatrixWorld(true);
+  for(const child of [...group.children]) {
+    if(!child.isMesh || child.userData.keep)continue;
+    const geometry=child.geometry.index ? child.geometry.toNonIndexed() : child.geometry.clone();
+    geometry.applyMatrix4(child.matrix);
+    for(const name of Object.keys(geometry.attributes))if(!['position','normal','uv'].includes(name))geometry.deleteAttribute(name);
+    if(!byMaterial.has(child.material))byMaterial.set(child.material,[]);
+    byMaterial.get(child.material).push(geometry);
+    group.remove(child);child.geometry.dispose();
+  }
+  for(const [material,parts] of byMaterial) {
+    const mesh=new THREE.Mesh(mergeGeometries(parts),material);parts.forEach(g=>g.dispose());
+    mesh.name=`${group.name} / ${material.name || 'batched'}`;
+    mesh.castShadow=mesh.receiveShadow=material!==undefined && !material.transparent;
+    group.add(mesh);
+  }
+}
+
 export function createParkLineWorld(scene) {
   const group=new THREE.Group();group.name='East Face Park Line';scene.add(group);
   const metal=new THREE.MeshStandardMaterial({color:0x263f50,metalness:.55,roughness:.4,side:THREE.DoubleSide});
   const orange=new THREE.MeshStandardMaterial({color:0xf57525,roughness:.65});
-  const dye=new THREE.MeshBasicMaterial({color:0x257eac,transparent:true,opacity:.62,depthWrite:false,side:THREE.DoubleSide});
+  // Lit dye, so the blue markings darken with the snow in shadow.
+  const dye=new THREE.MeshStandardMaterial({name:'Blue snow dye',color:0x2f86b8,roughness:.9,transparent:true,opacity:.68,depthWrite:false,side:THREE.DoubleSide,
+    polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
   for(const rail of HANDRAILS) {
-    const mesh=new THREE.Mesh(buildHandrailGeometry(rail),metal);mesh.name=rail.name;
+    const mesh=new THREE.Mesh(buildHandrailGeometry(rail),metal);mesh.name=rail.name;mesh.userData.keep=true;
     mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
     for(let u=4;u<rail.length;u+=8) {
       const p=logPoint(rail,u),base=groundHeight(p.x,p.s),height=Math.max(.1,p.y-.85-base);
@@ -41,6 +66,7 @@ export function createParkLineWorld(scene) {
       const a=i*(ns+1)+j,b=a+ns+1;ix.push(a,a+1,b,a+1,b+1,b);
     }
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setIndex(ix);
+    g.computeVertexNormals();
     const mesh=new THREE.Mesh(g,dye);mesh.name='Blue snow dye';group.add(mesh);
   }
   for(const j of PARK_LINE.jumps) {
@@ -93,5 +119,7 @@ export function createParkLineWorld(scene) {
     const pole=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,4,6),metal);pole.position.set(x,y+2,-s);group.add(pole);
     const flag=new THREE.Mesh(new THREE.BoxGeometry(.12,1.4,2),orange);flag.position.set(x,y+3.2,-s+1);group.add(flag);
   }
+  batchByMaterial(group);
+  batchByMaterial(ruler);
   return group;
 }

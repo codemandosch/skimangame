@@ -36,6 +36,8 @@ export function createLandingCrater(impact, material) {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
   geometry.setIndex(indices);
+  // Bowl-shaped normals let the packed pocket and rim catch the light.
+  geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'Landing crater / packed bowl and displaced powder rim';
