@@ -8,7 +8,7 @@ import { createRenderPipeline } from "./render-pipeline.js";
 import { createSkier } from "./skier.js";
 import { createEffects, createAudio } from "./effects.js";
 import { createRadio } from "./radio.js";
-import { mountainCameraTargets, constrainMountainCamera } from './mountain-camera.js';
+import { mountainCameraTargets, constrainMountainCamera, resetMountainCamera, updateMountainCamera } from './mountain-camera.js';
 import { COURSE, selectCourse, groundHeight } from "./course.js";
 import { formatScoringTime } from './scoring-window.js';
 import { createLeaderboardFlow } from './leaderboard-client.js';
@@ -277,6 +277,7 @@ function cameraTargets() {
   }
 }
 function snapCamera() {
+  if(COURSE.openWorld) resetMountainCamera(state);
   cameraTargets();
   camera.position.copy(desiredCamera);
   look.copy(desiredLook);
@@ -394,6 +395,7 @@ function frame(time) {
       pendingRailTurn=0;
       accumulator -= 1 / 120;
     }
+    if(COURSE.openWorld) updateMountainCamera(state,dt);
     cameraTargets();
     camera.position.lerp(desiredCamera, 1 - Math.exp(-8 * dt));
     if(COURSE.openWorld) constrainMountainCamera(camera.position,state);
