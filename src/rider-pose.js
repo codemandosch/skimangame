@@ -53,6 +53,8 @@ export function createRiderPose() {
     hangoutBlend: 0,
     bowBlend: 0,
     raiseBlend: 0,
+    // Per-arm blend toward trailing behind the hip on the inside of a turn.
+    trail: [0, 0],
     crouch: 0,
     skid: 0,
     tuck: 0,
@@ -70,6 +72,8 @@ export function createRiderPose() {
     // Extra forward curl and sideways bend through the spine, in radians.
     spineCurl: 0,
     spineBend: 0,
+    // How much of the relaxed, narrow on-snow stance applies (0 in the air).
+    snowStance: 0,
     skis: [],
     legs: [],
     arms: [],
@@ -138,7 +142,9 @@ export function updateRiderPose(p, s, dt) {
     dt,
   );
   const crouchTarget = s.railing ? .23 : s.airborne ? .06
-    : Math.min(.52, s.charge * .24 + p.tuck * .2 + (s.landingPulse || 0) + p.skid * .28);
+    // Holding Space (tuck + charge) only softens the knees a little more; the
+    // chest does the work by folding further forward over the skis.
+    : Math.min(.52, s.charge * .05 + p.tuck * .09 + (s.landingPulse || 0) + p.skid * .28);
   p.crouch = damp(
     p.crouch,
     crouchTarget,
@@ -150,6 +156,8 @@ export function updateRiderPose(p, s, dt) {
     lean = p.lean * ground * (1 - p.wipeout) * (0.65 + p.carveSpeed * 0.35),
     edge = p.edge * ground * (1 - p.wipeout) * (0.55 + p.carveSpeed * 0.45),
     pressure = Math.min(1, Math.abs(lean));
+  // On snow the rider stands relaxed: knees soft, chest forward, skis narrow.
+  const snow = p.snowStance = ground * (1 - p.wipeout);
   // Contact wins over the trailing grab blend on the landing frame.
   const skiMute = s.airborne ? p.mute : 0;
   const skiRear = s.airborne ? rearGrab : 0;
@@ -171,11 +179,12 @@ export function updateRiderPose(p, s, dt) {
       p.mute * 0.02 +
       rearGrab * 0.02 +
       p.extension +
-      chatter,
+      chatter -
+      snow * 0.05,
     0.03 + p.mute * 0.02 + rearGrab * 0.03,
   );
   p.torsoRotation.set(
-    -0.12 - p.crouch * 0.5 - p.tuck * 0.28 - p.octo * 0.25,
+    -0.12 - snow * 0.16 - p.crouch * 0.5 - p.tuck * 0.6 - p.octo * 0.25,
     rearGrab * -0.62 + lean * 0.1 - p.octo * 0.3,
     -lean * (0.52 + p.skid * .16),
   );
@@ -223,7 +232,7 @@ export function updateRiderPose(p, s, dt) {
   for (let i = 0; i < 2; i++) {
     const side = i ? 1 : -1;
     const position = v(
-      side * (0.34 + Math.abs(lean) * 0.035),
+      side * (MathUtils.lerp(0.34, 0.16, snow) + Math.abs(lean) * 0.035),
       // Leave room below the pelvis for a squat instead of folding boots
       // up to hip height and forcing the knees out beside the torso.
       skiRear * (i ? 0.5 : 0.44),
@@ -232,7 +241,7 @@ export function updateRiderPose(p, s, dt) {
     const rotation = new Euler(
       -skiRear * (i ? 1.05 : 0.58),
       // Blunt crosses the skis at the tips while reaching for the tail's end.
-      -side * 0.08 * (s.railing ? 0 : ground) + skiRear * side * 0.06 + skiBlunt * side * 0.59,
+      skiRear * side * 0.06 + skiBlunt * side * 0.59,
       -edge * 0.68,
       "YXZ",
     );
@@ -289,7 +298,7 @@ export function updateRiderPose(p, s, dt) {
     const hip = v(side * 0.18, 0, 0)
       .applyQuaternion(p.torsoQuaternion)
       .add(p.hips);
-    const kneePole = v(side * 0.45 + lean * 0.42, 0.6 + rearGrab * 0.9, -1.1);
+    const kneePole = v(side * MathUtils.lerp(0.45, 0.18, snow) + lean * 0.42, 0.6 + rearGrab * 0.9, -1.1);
     // Knees stay together and drive up toward the chest.
     kneePole.lerp(v(side * 0.12, 1.35, -1.2), skiMute + skiOcto);
     // Safety knees fold up together and point forward toward the skis' side.
@@ -337,11 +346,26 @@ export function updateRiderPose(p, s, dt) {
     const shoulder = v(side * 0.32, 0.61, -0.045)
       .applyQuaternion(p.torsoQuaternion)
       .add(p.hips);
+    // Relaxed hands ride ahead of the hips. In a turn the inside hand drops
+    // back behind the hip while the outside hand stays low and close, just
+    // ahead of the body.
+    const inside = MathUtils.clamp(side * lean, 0, 1), outside = MathUtils.clamp(-side * lean, 0, 1);
+    // The arm swings between leading and trailing over a few frames so a quick
+    // edge change does not whip the hand from behind the hip to the front.
+    p.trail[i] = damp(p.trail[i], MathUtils.smoothstep(inside, 0, 0.6), 8, dt);
+    const trailing = MathUtils.smoothstep(p.trail[i], 0, 1) * snow;
     const normal = v(
-      side * (0.59 + (1 - ground) * 0.13 - p.tuck * 0.15) + lean * 0.4,
-      1.1 - p.crouch * 0.55 - p.tuck * 0.1 + (1 - ground) * 0.13 - pressure * 0.12 - side * lean * 0.12,
-      -0.4 - Math.abs(lean) * 0.08 - p.tuck * 0.16,
+      side * (0.59 - snow * 0.14 + (1 - ground) * 0.13 - outside * 0.12)
+        + lean * (0.4 + snow * 0.45),
+      1.1 - snow * 0.06 - p.crouch * 0.55 - p.tuck * 0.12 + (1 - ground) * 0.13 - pressure * 0.12
+        - outside * 0.1,
+      -0.4 - snow * 0.1 - p.tuck * 0.12 + outside * 0.1,
     );
+    // Crouched to pop, the arms hang nearly straight in front of the knees.
+    const crouchedArms = p.tuck * snow;
+    normal.lerp(v(side * 0.3 + lean * 0.3, -0.24, -0.6).add(p.hips), crouchedArms);
+    // The inside arm hangs almost straight, down and back beside the hip.
+    normal.lerp(v(side * 0.37, 0.03, 0.26).applyQuaternion(p.torsoQuaternion).add(p.hips), trailing);
     const target = normal.clone();
     target.lerp(v(side*.53, 1.3-poleStroke*.5, -.65+poleStroke*.96), skate);
     if(s.railing)target.set(side*.86,1.23,-.16);
@@ -359,6 +383,9 @@ export function updateRiderPose(p, s, dt) {
     target.lerp(bowAnchors[i], p.bow);
     target.lerp(v(side * 0.64, 0.24, 0.93), p.wipeout);
     const elbowPole = v(side * 1.1 + lean * 0.15, 1.3, 0.3);
+    // Crouched or trailing arms bend their elbows backward, not out to the side.
+    elbowPole.lerp(v(side * 0.3, -0.3, 1).applyQuaternion(p.torsoQuaternion).add(shoulder), crouchedArms);
+    elbowPole.lerp(v(side * 0.3, -0.3, 1).applyQuaternion(p.torsoQuaternion).add(shoulder), trailing);
     // A raised free arm keeps its elbow out and back rather than flipping.
     if (i === 1) elbowPole.lerp(v(1.4, 0.6, 0.2), raise);
     const limb = solveLimb(shoulder, target, elbowPole, 0.42, 0.4);
@@ -367,7 +394,8 @@ export function updateRiderPose(p, s, dt) {
       elbow: limb.joint,
       elbowPole,
       hand: limb.end,
-      polePitch: MathUtils.lerp(-.6, -.12-poleStroke*.95, skate),
+      // Poles sweep further back while crouched to pop.
+      polePitch: MathUtils.lerp(-.6 - crouchedArms * .6, -.12-poleStroke*.95, skate),
       grip: Math.min(1, (i === 0 ? p.mute + p.japan : rearGrab + p.safety) + p.octo + p.daffy + p.bow),
       grabAnchor: s.grab === 7 ? bowAnchors[i] : i === 0 && s.grab === 5 ? japanAnchor : p.daffy > 0 ? daffyAnchors[i] : s.grab === 4 ? octoAnchors[i] : i === 0 ? muteAnchor : s.grab === 2 ? safetyAnchor : bluntAnchor,
       // Octo's rear hand holds ski 0; every other grab holds ski 1.
