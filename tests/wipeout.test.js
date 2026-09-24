@@ -44,7 +44,11 @@ test('the fall is judged in the rider body frame, so landing switch or sideways 
 });
 
 test('every wipeout starts from the impact attitude, moves without snapping and stands back up', () => {
-  const up = new Vector3(0, 1, 0), spinOrigin = new Vector3(0, 1, 0);
+  const spinOrigin = new Vector3(0, 1, 0);
+  // Standing back up means returning to the normal relaxed ski stance.
+  const standing = createRiderPose(), still = { ...createState(), speed: 14 };
+  for (let i = 0; i < 240; i++) updateRiderPose(standing, still, 1 / 120);
+  const up = new Vector3(0, 1, 0).applyQuaternion(standing.torsoQuaternion);
   for (const [name, [pitch, roll, kind]] of Object.entries(falls)) {
     const s = crashWith(pitch, roll), pose = createRiderPose(), dt = 1 / 120;
     const impact = new Quaternion().fromArray(s.crash.impact);
