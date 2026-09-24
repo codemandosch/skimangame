@@ -26,7 +26,9 @@ const flipSpeed = spin => FLIP_SPEED * (1 - (1 - MIXED_FLIP_WEIGHT) * Math.min(1
 const AIR_SPIN_ACCEL = 4.5;
 const GRAB_SPIN_BOOST = 1.3;
 const AIR_FLIP_ACCEL = 4;
-const ROTATION_RELEASE_DAMPING = 7;
+// Released rotation coasts: a full-speed spin or flip winds down to zero
+// over this time.
+const ROTATION_RELEASE_TIME = 1;
 const TAKEOFF_WINDOW = 0.12;
 const RAIL_SPIN_WINDOW = 0.35;
 // Keep a held charge available briefly after skiing off a ledge.
@@ -380,8 +382,8 @@ function updateAerial(s, input, dt) {
       const acceleration = AIR_SPIN_ACCEL * control * dt;
       s.spinVelocity += clamp(spinInput * SPIN_SPEED - s.spinVelocity, -acceleration, acceleration);
     } else {
-      s.spinVelocity *= Math.exp(-ROTATION_RELEASE_DAMPING * dt);
-      if (Math.abs(s.spinVelocity) < 0.01) s.spinVelocity = 0;
+      const deceleration = SPIN_SPEED / ROTATION_RELEASE_TIME * dt;
+      s.spinVelocity -= clamp(s.spinVelocity, -deceleration, deceleration);
     }
     const flipInput = clamp(input.flip || 0, -1, 1);
     const pitchInput = clamp(input.pitch || 0, -1, 1);
@@ -400,8 +402,8 @@ function updateAerial(s, input, dt) {
       s.flipVelocity += clamp(target - s.flipVelocity, -acceleration * dt, acceleration * dt);
     } else {
       // Brake angular velocity, never seek an angle or a level orientation.
-      s.flipVelocity *= Math.exp(-ROTATION_RELEASE_DAMPING * dt);
-      if (Math.abs(s.flipVelocity) < 0.01) s.flipVelocity = 0;
+      const deceleration = FLIP_SPEED / ROTATION_RELEASE_TIME * dt;
+      s.flipVelocity -= clamp(s.flipVelocity, -deceleration, deceleration);
     }
     const wasInDaffy = s.daffyProgress > 0;
     updateDaffy(s, !!input.daffy, dt);
