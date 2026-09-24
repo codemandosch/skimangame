@@ -3,6 +3,7 @@ import { groundHeight } from './course.js';
 import { snowLaunch, advanceSnow } from './snow-dynamics.js';
 import { landingPowderPressure } from './landing-impact.js';
 import { createLandingCrater } from './landing-crater.js';
+import { SUN_VECTOR } from './sun.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export function snowSprayRate(s) {
@@ -22,19 +23,25 @@ export function createEffects(scene) {
   const geometry=new THREE.BufferGeometry();
   for(const [name,data,size] of [['position',positions,3],['life',lives,1],['size',sizes,1]])
     geometry.setAttribute(name,new THREE.BufferAttribute(data,size).setUsage(THREE.DynamicDrawUsage));
+  // Powder is lit like the snow it came from: bright in sunlight, and it
+  // glows when the camera looks toward the sun through the spray.
+  const sun=new THREE.Vector3(...SUN_VECTOR).normalize();
   const snow=new THREE.Points(geometry,new THREE.ShaderMaterial({
     transparent:true,depthWrite:false,
-    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog]),fog:true,
-    vertexShader:`attribute float life;attribute float size;varying float vLife;
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{sunWorld:{value:sun}}]),fog:true,
+    vertexShader:`attribute float life;attribute float size;varying float vLife;varying float vGlow;
+      uniform vec3 sunWorld;
       #include <fog_pars_vertex>
       void main(){vLife=life;vec4 mvPosition=modelViewMatrix*vec4(position,1.0);
+      vec3 toEye=normalize(cameraPosition-(modelMatrix*vec4(position,1.0)).xyz);
+      vGlow=pow(max(dot(-toEye,sunWorld),0.0),4.0);
       gl_PointSize=min(52.0,size*650.0/max(1.0,-mvPosition.z));gl_Position=projectionMatrix*mvPosition;
       #include <fog_vertex>
       }`,
-    fragmentShader:`varying float vLife;
+    fragmentShader:`varying float vLife;varying float vGlow;
       #include <fog_pars_fragment>
       void main(){float d=length(gl_PointCoord-.5);float a=exp(-d*d*18.)*smoothstep(.5,.34,d)*vLife*.5;
-      gl_FragColor=vec4(.85,.92,1.,a);
+      gl_FragColor=vec4(vec3(1.02,1.06,1.14)*(1.05+2.2*vGlow),a);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
       #include <fog_fragment>
@@ -43,24 +50,26 @@ export function createEffects(scene) {
   snow.name='Powder / airborne crystals and mist'; snow.frustumCulled=false; scene.add(snow);
   // Three strips per ski: blue compressed groove flanked by small white berms.
   const segments=1024, verticesPerSegment=36, trailChunks=[];
-  const trailMaterial=new THREE.MeshBasicMaterial({
-    vertexColors:true,transparent:true,opacity:.42,depthWrite:false,side:THREE.DoubleSide,
+  // Lit, so grooves and berms shade with the snow in sun and in shadow.
+  const trailMaterial=new THREE.MeshStandardMaterial({
+    vertexColors:true,transparent:true,opacity:.62,depthWrite:false,roughness:.9,
     polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,
   });
   const craters=[];
-  const craterMaterial=new THREE.MeshBasicMaterial({
-    vertexColors:true,transparent:true,depthWrite:false,side:THREE.DoubleSide,
+  const craterMaterial=new THREE.MeshStandardMaterial({
+    vertexColors:true,transparent:true,depthWrite:false,roughness:.92,
     polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,
   });
   function newTrailChunk() {
     const positions=new Float32Array(segments*verticesPerSegment*3);
-    const colors=new Float32Array(positions.length), geometry=new THREE.BufferGeometry();
+    const colors=new Float32Array(positions.length), normals=new Float32Array(positions.length), geometry=new THREE.BufferGeometry();
     geometry.setAttribute('position',new THREE.BufferAttribute(positions,3).setUsage(THREE.DynamicDrawUsage));
     geometry.setAttribute('color',new THREE.BufferAttribute(colors,3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('normal',new THREE.BufferAttribute(normals,3).setUsage(THREE.DynamicDrawUsage));
     geometry.setDrawRange(0,0);
     const mesh=new THREE.Mesh(geometry,trailMaterial);
-    mesh.name='Ski tracks / compressed grooves and powder edges';mesh.frustumCulled=false;scene.add(mesh);
-    const chunk={mesh,geometry,positions,colors,count:0};trailChunks.push(chunk);return chunk;
+    mesh.name='Ski tracks / compressed grooves and powder edges';mesh.frustumCulled=false;mesh.receiveShadow=true;scene.add(mesh);
+    const chunk={mesh,geometry,positions,colors,normals,count:0};trailChunks.push(chunk);return chunk;
   }
   // Append chunks as the skier travels: early tracks never get overwritten.
   // Completed chunks are static GPU buffers; restart disposes the whole run.
@@ -88,6 +97,10 @@ export function createEffects(scene) {
     const pressure=landingPowderPressure(s);
     const halfWidth=.045+Math.abs(s.steer || 0)*.04+(s.braking ? .025 : 0)+(s.landingSkid || 0)*.1+pressure*.23;
     const bermWidth=.042+pressure*.14;
+    // One terrain normal per segment is enough for these thin strips.
+    const cx=(from.x+to.x)/2,cs=(from.s+to.s)/2;
+    const gx=(groundHeight(cx+.5,cs)-groundHeight(cx-.5,cs)),gs=(groundHeight(cx,cs+.5)-groundHeight(cx,cs-.5));
+    const nl=Math.hypot(gx,1,gs),normal=[-gx/nl,1/nl,gs/nl];
     for(const side of [-1,1]) for(const strip of [-1,0,1]) {
       const lower=strip===-1 ? -halfWidth-bermWidth : strip===0 ? -halfWidth : halfWidth;
       const upper=strip===-1 ? -halfWidth : strip===0 ? halfWidth : halfWidth+bermWidth;
@@ -97,14 +110,14 @@ export function createEffects(scene) {
         return [x,groundHeight(x,z)+(strip===0 ? .025 : .047+pressure*.07),-z];
       };
       const a=point(from,lower),b=point(from,upper),c=point(to,lower),d=point(to,upper);
-      const color=strip===0?[.36,.51,.63]:[.91,.96,1.];
+      const color=strip===0?[.5,.62,.76]:[.97,.98,1.];
       for(const v of [a,b,c,b,d,c]) for(let axis=0;axis<3;axis++) {
-        trail.positions[k]=v[axis]; trail.colors[k++]=color[axis];
+        trail.positions[k]=v[axis]; trail.normals[k]=normal[axis]; trail.colors[k++]=color[axis];
       }
     }
     trail.count++;
     trail.geometry.setDrawRange(0,trail.count*verticesPerSegment);
-    for(const name of ['position','color']) {
+    for(const name of ['position','color','normal']) {
       trail.geometry.attributes[name].addUpdateRange(start,k-start);
       trail.geometry.attributes[name].needsUpdate=true;
     }

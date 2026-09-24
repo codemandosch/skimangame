@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOGS,logPoint } from './log-layout.js';
 
 // Original procedural timber: longitudinal bark ridges, tapered broken ends,
@@ -51,32 +52,43 @@ export function createFallenLogs(scene) {
   const root=new THREE.Group();root.name='Rideable fallen timber';scene.add(root);
   const bark=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.96,side:THREE.DoubleSide});
   const branchMaterial=new THREE.MeshStandardMaterial({color:0x493121,roughness:1});
-  const snowMaterial=new THREE.MeshStandardMaterial({color:0xe0edf4,roughness:.96});
+  const snowMaterial=new THREE.MeshStandardMaterial({color:0xe6eef5,roughness:.92});
+  // Trunks are merged per mountain sector (cullable, few draw calls); the
+  // snapped branches and snow remnants are instanced across all logs.
+  const sectors=new Map();
   for(const log of LOGS) {
-    const group=new THREE.Group();group.name=log.name;group.userData.log=log.id;root.add(group);
-    const mesh=new THREE.Mesh(buildLogGeometry(log),bark);mesh.name=`Rideable log ${log.id}`;
-    mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
+    const key=Math.floor(((Math.atan2(log.x,log.s)/(Math.PI*2))+1)%1*12);
+    if(!sectors.has(key))sectors.set(key,[]);
+    sectors.get(key).push(buildLogGeometry(log));
+  }
+  for(const [key,parts] of sectors) {
+    const mesh=new THREE.Mesh(mergeGeometries(parts),bark);parts.forEach(g=>g.dispose());
+    mesh.name=`Rideable logs sector ${key}`;mesh.castShadow=mesh.receiveShadow=true;root.add(mesh);
+  }
+  const branches=new THREE.InstancedMesh(new THREE.CylinderGeometry(.055,.17,1,7),branchMaterial,LOGS.length*5);
+  const snow=new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,6),snowMaterial,LOGS.length*3);
+  branches.name='Snapped log branches';snow.name='Snow on logs';
+  const dummy=new THREE.Object3D(),up=new THREE.Vector3(0,1,0);
+  LOGS.forEach((log,index)=>{
     for(let i=0;i<5;i++) {
       const u=log.length*(.12+i*.17),p=logPoint(log,u),side=i%2?1:-1;
       const start=new THREE.Vector3(p.x+log.ds*log.radius*.6*side,p.y-log.radius*.9,-p.s+log.dx*log.radius*.6*side);
       const end=start.clone().add(new THREE.Vector3(log.ds*side*.75,-.35,log.dx*side*.75));
-      const branch=new THREE.Mesh(new THREE.CylinderGeometry(.055,.17,start.distanceTo(end),7),branchMaterial);
-      branch.position.copy(start).lerp(end,.5);branch.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.sub(start).normalize());
-      branch.castShadow=true;group.add(branch);
+      dummy.position.copy(start).lerp(end,.5);dummy.scale.set(1,start.distanceTo(end),1);
+      dummy.quaternion.setFromUnitVectors(up,end.clone().sub(start).normalize());
+      dummy.updateMatrix();branches.setMatrixAt(index*5+i,dummy.matrix);
     }
     // Small snow remnants sit on the shoulders, leaving a readable dark rail.
     for(let i=0;i<3;i++) {
       const u=log.length*(.23+i*.27),p=logPoint(log,u);
-      const snow=new THREE.Mesh(new THREE.SphereGeometry(1,10,6),snowMaterial);
-      snow.position.set(p.x+log.ds*log.radius*.58,p.y-.13,-p.s+log.dx*log.radius*.58);
-      snow.scale.set(.16,.07,1.4);snow.rotation.y=log.heading;snow.rotation.x=Math.atan(log.grade);
-      snow.receiveShadow=true;group.add(snow);
+      dummy.position.set(p.x+log.ds*log.radius*.58,p.y-.13,-p.s+log.dx*log.radius*.58);
+      dummy.scale.set(.16,.07,1.4);dummy.rotation.set(Math.atan(log.grade),log.heading,0,'YXZ');
+      dummy.updateMatrix();snow.setMatrixAt(index*3+i,dummy.matrix);
     }
-  }
-  root.userData.update=state=>{
-    for(const group of root.children) {
-      const log=LOGS[group.userData.log];group.visible=Math.hypot(state.x-log.x,state.s-log.s)<1100;
-    }
-  };
+  });
+  branches.castShadow=true;snow.receiveShadow=true;
+  branches.computeBoundingSphere();snow.computeBoundingSphere();
+  root.add(branches,snow);
+  root.userData.update=()=>{};
   return root;
 }

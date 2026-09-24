@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createRenderPipeline } from '../../src/render-pipeline.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createWorld } from '../../src/world.js';
 import { RESORT, townPoint } from '../../src/resort-layout.js';
@@ -8,8 +9,9 @@ selectCourse('blackridge');
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,30000);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.03;
+
 document.body.append(renderer.domElement);
+const pipeline=createRenderPipeline(renderer,scene,camera);
 const controls=new OrbitControls(camera,renderer.domElement),world=createWorld(scene);
 let state;
 const selector=document.querySelector('#town');
@@ -35,5 +37,5 @@ document.querySelector('#wide').onclick=()=>{
   document.querySelector('#status').textContent='Six villages and their connected valley road · drag to orbit';
 };
 show();
-function frame(){world.update(state);renderer.render(scene,camera);requestAnimationFrame(frame);}frame();
-window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+function frame(){world.update(state,camera);pipeline.render();requestAnimationFrame(frame);}frame();
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();pipeline.setSize(innerWidth,innerHeight);});
