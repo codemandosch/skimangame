@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Wipeout review</title>
+<style>body{margin:0;background:#bbd2e3;color:white;font:14px system-ui}canvas{display:block}nav{position:fixed;top:20px;left:20px;background:#182e3c;padding:16px;border-radius:8px;max-width:300px}label{display:block;margin:12px 0}input{width:240px}button{padding:6px;margin:2px}p{margin-bottom:0}</style></head>
+<body><nav><strong>Wipeouts · drag to orbit</strong><div>
+<button data-crash="back">Lean back</button><button data-crash="front">Lean forward</button>
+<button data-crash="left">Lean left</button><button data-crash="right">Lean right</button>
+<button data-crash="head-back">Head-first back</button><button data-crash="head-front">Head-first front</button>
+<button data-crash="head-side">Head-first side</button><button data-crash="sideways">Sideways + back</button></div>
+<label>Time after impact <input id="age" type="range" min="0" max="2.3" step="0.01" value="0.5"></label>
+<button id="replay">Replay</button><p id="status">Loading skier…</p></nav>
+<script type="module" src="./wipeout-lab.js"></script></body></html>

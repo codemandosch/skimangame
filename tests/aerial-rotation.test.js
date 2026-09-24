@@ -57,7 +57,7 @@ test('a full cork returns upright, counts 360, and lands in its actual stance', 
 
 test('landing uses visible tilt and heading instead of accumulated input angles', () => {
   const s = launch(1, -1);
-  fly(s, 1.3, { spin: 1, flip: -1 });
+  fly(s, 1, { spin: 1, flip: -1 });
   assert.ok(Math.cos(s.flip) < 0, 'old independent flip counter would reject this landing');
   const before = riderRotation(s, new Quaternion());
   const forward = new Vector3(0, 0, -1).applyQuaternion(before);

@@ -344,6 +344,12 @@ export function createSkier(scene) {
       root.position.y -= landingSink(s);
       heading.rotation.set(frame.pitch, s.heading, frame.roll, "YXZ");
       riderRotation(s, spin.quaternion);
+      spin.position.set(0, 1, 0);
+      // A wipeout carries on from the impact attitude instead of snapping upright.
+      if (pose.crashActive) {
+        spin.quaternion.copy(pose.crashQuaternion);
+        spin.position.copy(pose.crashPosition);
+      }
       torso.position.copy(pose.hips);
       torso.quaternion.copy(pose.torsoQuaternion);
       head.rotation.y = -pose.lean * 0.22;
