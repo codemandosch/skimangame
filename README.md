@@ -27,7 +27,7 @@ Blackridge has approximately 1,900 vertical metres of relief. Descend any side, 
 | ↑ / ↓ or I / K | Tuck / brake                   | Frontflip / backflip  |
 | Space     | Hold to charge; release to pop | Release within 0.3 seconds of leaving a ledge to use the held charge |
 | Ctrl      | Hold to skate and double pole; assistance fades out at 144 km/h | — |
-| Q / W / E / S / D  | —                              | Blunt / mute / tail / Octo / Japan grab |
+| Q / W / E / S / D  | —                              | Blunt / mute / safety / Octo / Japan grab |
 | A              | —                              | Daffy: front nose + rear tail grab; release to recover |
 | Escape / P     | Pause / resume                 | Pause / resume        |
 | F              | —                              | Bow and Arrow double grab |

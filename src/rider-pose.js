@@ -40,14 +40,14 @@ export function createRiderPose() {
     edge: 0,
     carveSpeed: 0,
     mute: 0,
-    tail: 0,
+    safety: 0,
     blunt: 0,
     octo: 0,
     japan: 0,
     hangout: 0,
     bow: 0,
     muteBlend: 0,
-    tailBlend: 0,
+    safetyBlend: 0,
     bluntBlend: 0,
     octoBlend: 0,
     japanBlend: 0,
@@ -123,7 +123,7 @@ export function updateRiderPose(p, s, dt) {
   p.lookBack = damp(p.lookBack, s.switch ? 1 : 0, 7, dt);
   const grabRate = s.grab === 4 || s.grab === 5 ? 5 : 7;
   p.muteBlend = damp(p.muteBlend, s.airborne && s.grab === 1 ? 1 : 0, grabRate, dt);
-  p.tailBlend = damp(p.tailBlend, s.airborne && s.grab === 2 ? 1 : 0, grabRate, dt);
+  p.safetyBlend = damp(p.safetyBlend, s.airborne && s.grab === 2 ? 1 : 0, grabRate, dt);
   p.bluntBlend = damp(p.bluntBlend, s.airborne && s.grab === 3 ? 1 : 0, grabRate, dt);
   p.octoBlend = damp(p.octoBlend, s.airborne && s.grab === 4 ? 1 : 0, 5, dt);
   p.japanBlend = damp(p.japanBlend, s.airborne && s.grab === 5 ? 1 : 0, 3.5, dt);
@@ -131,7 +131,7 @@ export function updateRiderPose(p, s, dt) {
   p.bowBlend = damp(p.bowBlend, s.airborne && s.grab === 7 ? 1 : 0, 4, dt);
   // Ease the beginning and end of a reach so a grab does not start at peak speed.
   p.mute = MathUtils.smoothstep(p.muteBlend, 0, 1);
-  p.tail = MathUtils.smoothstep(p.tailBlend, 0, 1);
+  p.safety = MathUtils.smoothstep(p.safetyBlend, 0, 1);
   p.blunt = MathUtils.smoothstep(p.bluntBlend, 0, 1);
   p.octo = MathUtils.smoothstep(p.octoBlend, 0, 1);
   p.japan = MathUtils.smoothstep(p.japanBlend, 0, 1);
@@ -141,7 +141,7 @@ export function updateRiderPose(p, s, dt) {
   // than the grab so switching grabs does not yank the arm across the body.
   p.raiseBlend = damp(p.raiseBlend, s.airborne && (s.grab === 1 || s.grab === 5) ? 1 : 0, s.airborne ? 4 : 10, dt);
   const raise = MathUtils.smoothstep(p.raiseBlend, 0, 1);
-  const rearGrab = p.tail + p.blunt;
+  const rearGrab = p.blunt;
   p.tuck = damp(p.tuck, s.tucking ? 1 : 0, 9, dt);
   p.extension = damp(
     p.extension,
@@ -159,15 +159,16 @@ export function updateRiderPose(p, s, dt) {
     crouchTarget > p.crouch ? 18 : 7,
     dt,
   );
-  const grab = p.mute + rearGrab,
+  const grab = p.mute + p.safety + rearGrab,
     ground = p.grounded,
     lean = p.lean * ground * (1 - p.wipeout) * (0.65 + p.carveSpeed * 0.35),
     edge = p.edge * ground * (1 - p.wipeout) * (0.55 + p.carveSpeed * 0.45),
     pressure = Math.min(1, Math.abs(lean));
   // Contact wins over the trailing grab blend on the landing frame.
   const skiMute = s.airborne ? p.mute : 0;
-  const skiTail = s.airborne ? rearGrab : 0;
+  const skiRear = s.airborne ? rearGrab : 0;
   const skiBlunt = s.airborne ? p.blunt : 0;
+  const skiSafety = s.airborne ? p.safety : 0;
   const skiOcto = s.airborne ? p.octo : 0;
   const skiJapan = s.airborne ? p.japan : 0;
   const skiHangout = s.airborne ? p.hangout : 0;
@@ -205,8 +206,14 @@ export function updateRiderPose(p, s, dt) {
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.6, p.japan);
   p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, -0.35, p.japan);
   p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, 0.25, p.japan);
-  p.spineCurl = -0.25 * p.mute - 0.4 * p.japan;
-  p.spineBend = -0.1 * p.japan + 0.3 * p.bow;
+  // Safety bows the body sideways: hips out to the left, chest leaning over
+  // toward the skis that hang off the right side.
+  p.hips.x -= 0.14 * p.safety;
+  p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.2, p.safety);
+  p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, 0, p.safety);
+  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, -0.45, p.safety);
+  p.spineCurl = -0.25 * p.mute - 0.1 * p.safety - 0.4 * p.japan;
+  p.spineBend = -0.35 * p.safety - 0.1 * p.japan + 0.3 * p.bow;
   // Relax into an open, arched posture; aerial rotation remains physics-owned.
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, Math.PI / 2 + 0.15, p.hangout);
   p.torsoRotation.y *= 1 - p.hangout;
@@ -245,16 +252,22 @@ export function updateRiderPose(p, s, dt) {
       side * (0.34 + Math.abs(lean) * 0.035),
       // Leave room below the pelvis for a squat instead of folding boots
       // up to hip height and forcing the knees out beside the torso.
-      skiTail * (i ? 0.5 : 0.44),
-      skiTail * 0.04 - side * lean * 0.1,
+      skiRear * (i ? 0.5 : 0.44),
+      skiRear * 0.04 - side * lean * 0.1,
     );
     const rotation = new Euler(
-      -skiTail * (i ? 1.05 : 0.58),
+      -skiRear * (i ? 1.05 : 0.58),
       // Blunt crosses the skis at the tips while reaching for the tail's end.
-      -side * 0.08 * (s.railing ? 0 : ground) + skiTail * side * 0.06 + skiBlunt * side * 0.59,
+      -side * 0.08 * (s.railing ? 0 : ground) + skiRear * side * 0.06 + skiBlunt * side * 0.59,
       -edge * 0.68,
       "YXZ",
     );
+    // Safety: both skis parallel and close together, tweaked out to the right
+    // of the tucked knees and rolled onto their sides, bases facing out.
+    position.lerp(i ? v(0.6, 0.6, -0.12) : v(0.44, 0.56, -0.08), skiSafety);
+    rotation.x = MathUtils.lerp(rotation.x, 0.1, skiSafety);
+    rotation.y = MathUtils.lerp(rotation.y, 0, skiSafety);
+    rotation.z = MathUtils.lerp(rotation.z, 1.5, skiSafety);
     // Mute pulls both knees up together and crosses the skis in an X just in
     // front of the boots; the grabbed ski rides on top, rolled toward the hand.
     position.lerp(i ? v(0.08, 0.56, -0.24) : v(-0.1, 0.46, -0.16), skiMute);
@@ -263,7 +276,7 @@ export function updateRiderPose(p, s, dt) {
     rotation.z = MathUtils.lerp(rotation.z, i ? 0.3 : -0.12, skiMute);
     // Octo tucks both knees together like a mute, then lifts the nose of one
     // ski and the tail of the other so the pair crosses in an X. Rotations
-    // add on top of the fading tail grab so a held tail is not whipped away.
+    // add on top of a fading blunt so its held tail is not whipped away.
     position.lerp(i ? v(0.08, 0.5, -0.2) : v(-0.1, 0.46, -0.04), skiOcto);
     rotation.x += skiOcto * (i ? 0.7 : -0.9);
     rotation.y += skiOcto * (i ? 0.55 : 0.6);
@@ -309,6 +322,8 @@ export function updateRiderPose(p, s, dt) {
     const kneePole = v(side * 0.45 + lean * 0.42, 0.6 + rearGrab * 0.9, -1.1);
     // Knees stay together and drive up toward the chest.
     kneePole.lerp(v(side * 0.12, 1.35, -1.2), skiMute + skiOcto);
+    // Safety knees fold up together and point forward toward the skis' side.
+    kneePole.lerp(v(side * 0.1 + 0.4, 1.2, -1.1), skiSafety);
     kneePole.lerp(v(side * 0.3, i ? 0.35 : 0.65, i ? 0.05 : -1.1), p.daffy);
     kneePole.lerp(i ? v(0.25, -0.5, -0.6) : v(-0.3, 1.2, -1.2), skiJapan);
     kneePole.lerp(i ? v(0.35, 0.65, -0.9) : v(-0.7, 0.95, -0.5), skiBow);
@@ -327,14 +342,14 @@ export function updateRiderPose(p, s, dt) {
   const muteAnchor = v(0.06, 0.115, -0.34)
     .applyQuaternion(p.skis[1].quaternion)
     .add(p.skis[1].position);
-  const tailAnchor = v(0.065, 0.115, 1.05)
+  // Outside edge of the right ski, directly under the boot.
+  const safetyAnchor = v(0.07, 0.1, 0.02)
     .applyQuaternion(p.skis[1].quaternion)
     .add(p.skis[1].position);
   // Cap the very end of the same-side ski for blunt.
   const bluntAnchor = v(0, 0.115, 1.2)
     .applyQuaternion(p.skis[1].quaternion)
     .add(p.skis[1].position);
-  const rearAnchor = tailAnchor.clone().lerp(bluntAnchor, rearGrab > 0 ? p.blunt / rearGrab : 0);
   const octoAnchors = [
     v(-0.065, 0.115, -1.05).applyQuaternion(p.skis[1].quaternion).add(p.skis[1].position),
     v(0.065, 0.115, 1.15).applyQuaternion(p.skis[0].quaternion).add(p.skis[0].position),
@@ -346,7 +361,7 @@ export function updateRiderPose(p, s, dt) {
   // Inside edge of the tucked ski, just in front of the toe piece.
   const japanAnchor = v(-0.07, 0.1, -0.35)
     .applyQuaternion(p.skis[1].quaternion).add(p.skis[1].position);
-  p.grabAnchor.copy(s.grab === 5 ? japanAnchor : s.grab === 3 ? bluntAnchor : s.grab === 2 ? tailAnchor : muteAnchor);
+  p.grabAnchor.copy(s.grab === 5 ? japanAnchor : s.grab === 3 ? bluntAnchor : s.grab === 2 ? safetyAnchor : muteAnchor);
   // A free hand thrown up beside the helmet, relative to the chest.
   const raisedHand = v(0.6, 0.66, 0.08).applyQuaternion(p.torsoQuaternion).add(p.hips);
   for (let i = 0; i < 2; i++) {
@@ -365,7 +380,10 @@ export function updateRiderPose(p, s, dt) {
     if (i === 0) target.lerp(muteAnchor, p.mute);
     // The free hand rises beside the head for balance and style.
     else target.lerp(raisedHand, raise);
-    if (i === 1) target.lerp(rearAnchor, rearGrab);
+    if (i === 1) target.lerp(bluntAnchor, rearGrab);
+    if (i === 1) target.lerp(safetyAnchor, p.safety);
+    // The free hand trails out and back, relative to the chest.
+    else target.lerp(v(-0.62, 0.38, 0.1).applyQuaternion(p.torsoQuaternion).add(p.hips), p.safety);
     target.lerp(octoAnchors[i], p.octo);
     target.lerp(daffyAnchors[i], p.daffy);
     if (i === 0) target.lerp(japanAnchor, p.japan);
@@ -387,8 +405,8 @@ export function updateRiderPose(p, s, dt) {
       elbowPole,
       hand: limb.end,
       polePitch: MathUtils.lerp(-.6, -.12-poleStroke*.95, skate),
-      grip: Math.min(1, (i === 0 ? p.mute + p.japan : rearGrab) + p.octo + p.daffy + p.bow),
-      grabAnchor: s.grab === 7 ? bowAnchors[i] : i === 0 && s.grab === 5 ? japanAnchor : p.daffy > 0 ? daffyAnchors[i] : s.grab === 4 ? octoAnchors[i] : i === 0 ? muteAnchor : rearAnchor,
+      grip: Math.min(1, (i === 0 ? p.mute + p.japan : rearGrab + p.safety) + p.octo + p.daffy + p.bow),
+      grabAnchor: s.grab === 7 ? bowAnchors[i] : i === 0 && s.grab === 5 ? japanAnchor : p.daffy > 0 ? daffyAnchors[i] : s.grab === 4 ? octoAnchors[i] : i === 0 ? muteAnchor : s.grab === 2 ? safetyAnchor : bluntAnchor,
       // Octo's rear hand holds ski 0; every other grab holds ski 1.
       gripQuaternion: p.skis[1].quaternion.clone().slerp(p.skis[i === 0 ? 1 : 0].quaternion, p.octo)
         .slerp(p.skis[i].quaternion, p.daffy).slerp(p.skis[i].quaternion, p.bow),

@@ -219,7 +219,7 @@ function aerialTrick(s) {
         ? "GRAB COMBO"
         : s.grabs.has(1)
           ? "MUTE GRAB"
-          : s.grabs.has(7) ? "BOW AND ARROW" : s.grabs.has(6) ? "HANG OUT" : s.grabs.has(5) ? "JAPAN GRAB" : s.grabs.has(4) ? "OCTO GRAB" : s.grabs.has(3) ? "BLUNT GRAB" : "TAIL GRAB",
+          : s.grabs.has(7) ? "BOW AND ARROW" : s.grabs.has(6) ? "HANG OUT" : s.grabs.has(5) ? "JAPAN GRAB" : s.grabs.has(4) ? "OCTO GRAB" : s.grabs.has(3) ? "BLUNT GRAB" : "SAFETY GRAB",
     );
   const base =
     halfTurns * 180 +
