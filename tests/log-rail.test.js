@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LOGS,logPoint } from '../src/log-layout.js';
-import { groundHeight } from '../src/blackridge.js';
+import { groundHeight,gradientAt } from '../src/blackridge.js';
+import { LANDING_TILT_LIMIT } from '../src/wipeout.js';
 import { selectCourse } from '../src/course.js';
 import { createState,step,respawn } from '../src/physics.js';
 import { keyboardInput,releaseKey } from '../src/controls.js';
@@ -59,7 +60,11 @@ test('every log can be entered from snow, slid fully and exited at 30/60/120 Hz'
     assert.ok(s.vy<=15,`${log.id}: log exit exceeds the upward launch limit`);
     if(log.kind==='kicker')assert.ok(s.vy>3,`${log.id} launches upward`);
     for(let i=0;i<hz*18 && s.airborne;i++)step(s,{},1/hz);
-    assert.equal(s.airborne,false,`${log.id} returns to snow`);assert.equal(s.bailTimer,0);
+    assert.equal(s.airborne,false,`${log.id} returns to snow`);
+    // A level, hands-off rider sticks any landing that is not steeper than
+    // the tilt limit; steeper faces need pitch to match them in the air.
+    const g=gradientAt(s.x,s.s),steepness=Math.atan(Math.hypot(g.x,g.s));
+    if(steepness<LANDING_TILT_LIMIT-.05)assert.equal(s.bailTimer,0,`${log.id} lands clean at ${hz} Hz`);
   }
 });
 test('long snow-ridge approaches feed onto raised timber at every frame rate',()=>{

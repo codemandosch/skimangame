@@ -96,7 +96,8 @@ export function createSkinnedRiderRig(model, space) {
           0.6 + pose.blunt * 0.9, -1.1);
         // Shaped grabs aim the knees themselves; the rest keep the rig's stance.
         kneePole.lerp(pose.legs[i].kneePole,
-          Math.min(1, pose.mute + pose.safety + pose.octo + pose.daffy + pose.japan + pose.bow));
+          Math.min(1, pose.mute + pose.safety + pose.octo + pose.daffy + pose.japan + pose.bow
+            + pose.crash.face + pose.crash.tuck + pose.crash.slam));
         solve(legs[i], footTarget, kneePole);
         const toeDirection = rest[`${prefix}_ToeBase`].point.clone().sub(rest[footName].point);
         const footYaw = Math.atan2(toeDirection.x, -toeDirection.z);
