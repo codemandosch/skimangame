@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Euler } from "three";
+import { Euler, Vector3 } from "three";
 import { createRiderPose, updateRiderPose } from "../src/rider-pose.js";
 import { createState, step, resolveLanding } from "../src/physics.js";
 
@@ -171,4 +171,22 @@ test('airborne and rail poses ignore stale landing impact and skid signals', () 
     assert.ok(stale.hips.distanceTo(baseline.hips) < 1e-8);
     assert.equal(stale.torsoRotation.z, baseline.torsoRotation.z);
   }
+});
+
+test("safety grab rolls both parallel skis onto their sides and holds the right one under the boot", () => {
+  const p = settle({ ...createState(), airborne: true, grab: 2 });
+  const [left, right] = p.skis;
+  const directions = p.skis.map(ski => new Vector3(0, 0, 1).applyQuaternion(ski.quaternion));
+  assert.ok(directions[0].dot(directions[1]) > 0.99, "skis stay parallel");
+  assert.ok(left.position.distanceTo(right.position) < 0.3, "skis stay close together");
+  for (const ski of p.skis) {
+    const base = new Vector3(0, -1, 0).applyQuaternion(ski.quaternion);
+    assert.ok(base.x > 0.9, "bases face out to the side, not the ground");
+    assert.ok(ski.position.x > p.hips.x + 0.4, "skis are tweaked out to the right");
+  }
+  const arm = p.arms[1];
+  assert.ok(arm.grip > 0.99);
+  const local = arm.grabAnchor.clone().sub(right.position).applyQuaternion(right.quaternion.clone().invert());
+  assert.ok(local.x > 0 && Math.abs(local.z) < 0.1, "hold the outside edge under the boot");
+  assert.ok(p.torsoRotation.z < -0.3 && p.hips.x < -0.1, "the body bows sideways over the skis");
 });

@@ -41,7 +41,7 @@ function remember() {
   history.replaceState(null, "", `?pose=${poseName}&angle=${angle}`);
 }
 function view() {
-  const lift = rotations[poseName] || ["takeoff", "air", "mute", "tail", "blunt", "octo", "japan", "hangout", "bow", "daffy"].includes(poseName) ? 0.35 : 0;
+  const lift = rotations[poseName] || ["takeoff", "air", "mute", "safety", "blunt", "octo", "japan", "hangout", "bow", "daffy"].includes(poseName) ? 0.35 : 0;
   target.y = 181.05 + lift;
   camera.position.set(Math.sin(angle) * 5.2, 182.4 + lift, Math.cos(angle) * 5.2);
   camera.lookAt(target);
@@ -63,7 +63,7 @@ function selectPose(p) {
     landingTime = 0;
     state.daffyProgress = 0;
     state.daffyExtended = state.daffyCompleted = false;
-    state.grab = p === "bow" ? 7 : p === "mute" ? 1 : p === "tail" ? 2 : p === "blunt" ? 3 : p === "octo" ? 4 : p === "japan" ? 5 : p === "hangout" || p === "hangout-backflip" ? 6 : 0;
+    state.grab = p === "bow" ? 7 : p === "mute" ? 1 : p === "safety" ? 2 : p === "blunt" ? 3 : p === "octo" ? 4 : p === "japan" ? 5 : p === "hangout" || p === "hangout-backflip" ? 6 : 0;
     state.steer = p === "left" ? -1 : p === "right" ? 1 : 0;
     state.tucking = p === "tuck";
     state.skating = p === "skate" ? 1 : 0;
@@ -127,7 +127,7 @@ function frame(t) {
   state.time += dt;
   if (poseName === "skate") state.skatePhase += dt * Math.PI * 2 * 1.15;
   if (sequenceTime >= 0) {
-    const names = ["neutral", "left", "right", "tuck", "charge", "air", "mute", "tail", "blunt", "octo", "japan", "hangout", "bow", "daffy", "landing"];
+    const names = ["neutral", "left", "right", "tuck", "charge", "air", "mute", "safety", "blunt", "octo", "japan", "hangout", "bow", "daffy", "landing"];
     sequenceTime = (sequenceTime + dt) % (names.length * 2);
     const next = names[Math.floor(sequenceTime / 2)];
     if (next !== poseName) selectPose(next);

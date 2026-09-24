@@ -17,7 +17,7 @@ const motions = {
   Takeoff: {airborne:true,airtime:.08},
   Airborne: {airborne:true,airtime:.7},
   MuteGrab: {airborne:true,airtime:.7,grab:1},
-  TailGrab: {airborne:true,airtime:.7,grab:2},
+  SafetyGrab: {airborne:true,airtime:.7,grab:2},
   Landing: {landingPulse:.4}, Switch: {switch:true},
 };
 const sample = pose => ({

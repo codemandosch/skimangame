@@ -28,7 +28,7 @@ for (const scenario of [
   { name: "right landing skid", landingPulse: .65, landingSkid: .9, landingSkidDirection: 1, speed: 35 },
   { name: "switch landing skid", landingPulse: .65, landingSkid: .9, landingSkidDirection: -1, speed: 35, switch: true },
   { name: "mute", airborne: true, grab: 1 },
-  { name: "tail", airborne: true, grab: 2 },
+  { name: "safety", airborne: true, grab: 2 },
   { name: "blunt", airborne: true, grab: 3 },
   { name: "octo", airborne: true, grab: 4 },
   { name: "japan", airborne: true, grab: 5 },

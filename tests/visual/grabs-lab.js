@@ -4,7 +4,7 @@ import { createState } from "../../src/physics.js";
 
 // Every held grab from five angles: ?grabs=mute,japan&views=front,side&size=260 narrows the sheet.
 const params = new URLSearchParams(location.search);
-const grabs = { mute: 1, tail: 2, blunt: 3, octo: 4, japan: 5, hangout: 6, bow: 7, daffy: 0 };
+const grabs = { mute: 1, safety: 2, blunt: 3, octo: 4, japan: 5, hangout: 6, bow: 7, daffy: 0 };
 const names = (params.get("grabs") || Object.keys(grabs).join(",")).split(",");
 const views = { front: Math.PI, "front-3/4": Math.PI * .75, side: Math.PI / 2, "rear-3/4": Math.PI * .25, rear: 0, "left-3/4": -Math.PI * .75, left: -Math.PI / 2 };
 const angles = (params.get("views") || "front,front-3/4,side,rear-3/4,rear").split(",").map(view => [view, views[view]]);

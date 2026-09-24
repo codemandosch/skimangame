@@ -93,10 +93,10 @@ export function createSkinnedRiderRig(model, space) {
         const footTarget = vector(0, rest[footName].point.y + 0.17, 0.045)
           .applyQuaternion(ski.quaternion).add(ski.position);
         const kneePole = vector(side * 0.55 + pose.hips.x * 0.9,
-          0.6 + (pose.tail + pose.blunt) * 0.9, -1.1);
+          0.6 + pose.blunt * 0.9, -1.1);
         // Shaped grabs aim the knees themselves; the rest keep the rig's stance.
         kneePole.lerp(pose.legs[i].kneePole,
-          Math.min(1, pose.mute + pose.octo + pose.daffy + pose.japan + pose.bow));
+          Math.min(1, pose.mute + pose.safety + pose.octo + pose.daffy + pose.japan + pose.bow));
         solve(legs[i], footTarget, kneePole);
         const toeDirection = rest[`${prefix}_ToeBase`].point.clone().sub(rest[footName].point);
         const footYaw = Math.atan2(toeDirection.x, -toeDirection.z);
