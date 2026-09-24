@@ -251,7 +251,7 @@ export function mountainFraction(x, s) {
   return Math.hypot(x, s) / radiusAt(Math.atan2(x, s));
 }
 export function areaAt(x, s) {
-  if (parkWeight(x,s) > .9) return { name: 'EAST FACE PARK LINE', description: 'Groomed snow / big jumps / handrails' };
+  if (parkWeight(x,s) > .9) return { name: 'EAST FACE PARK LINE', description: 'Groomed snow / big jumps / spine' };
   if (Math.hypot(x, s) < 110) return { name: 'THE SUMMIT', description: 'Choose any face / Ctrl to skate' };
   const angle = (Math.atan2(x, s) * 180 / Math.PI + 360) % 360;
   return AREAS[Math.floor((angle + 30) / 60) % 6];
@@ -263,7 +263,7 @@ export function featureCoordinates(f, x, s) {
 // Natural lips are not ruler-straight: each crest bows forward or back toward
 // its ends and wanders a little, seeded by its position so it never changes.
 // The offset is zero on the centre line, where authored approaches aim.
-// Lift and park kickers stay straight to line up with cables and rails.
+// Lift and park kickers stay straight to line up with the cables and park lane.
 function lipCurve(f) {
   if (f.lipCurve !== undefined) return f.lipCurve;
   const hash = k => { const n = Math.sin(f.x * 12.9898 + f.s * 78.233 + k * 37.719) * 43758.5453; return n - Math.floor(n); };
@@ -503,7 +503,6 @@ export function treeCollision(x,s) {
 // Place against unmodified terrain, then install the low snow supports once.
 // Keeping this initialization here gives every terrain consumer the same map.
 export const LOGS=createLogLayout({groundHeight,gradientAt,FEATURES,TREES,radiusAt,lift,reserved:parkReserved});
-export const HANDRAILS = PARK_LINE.rails.map((rail, index) => ({ ...rail, id: LOGS.length + index }));
 for(const log of LOGS.filter(log=>log.kind==='fallen')) {
   const x1=log.x-log.dx*16,s1=log.s-log.ds*16;
   const x2=log.x+log.dx*(log.length+12),s2=log.s+log.ds*(log.length+12);

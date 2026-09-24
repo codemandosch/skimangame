@@ -19,17 +19,15 @@ export function createParkLine(nativeHeight, firstIndex) {
   const average = x => [-80, -40, 0, 40, 80].reduce((h, s) => h + nativeHeight(x, s), 0) / 5;
   const top = average(240), bottom = average(1940), grade = (top - bottom) / 1700;
   const heightAt = x => top - grade * (x - 240);
+  // Four airs climb in size down the strip, separated by short runouts. Landings
+  // sit close enough that the eased top speed still reaches each deck.
   const jumps = [
-    { name: 'EAST FACE AIR', x: 354.7345, height: 32, length: 77, width: 24, gap: 137.8655, landingHeight: 24, landingLength: 96, landingWidth: 70 },
-    { name: 'LONG SHOT', x: 900, height: 40, length: 99, width: 28, gap: 146.2, landingHeight: 28, landingLength: 102, landingWidth: 72 },
-    { name: 'HOME STRETCH', x: 1440, height: 48, length: 121, width: 32, gap: 136, landingHeight: 32, landingLength: 108, landingWidth: 74 },
+    { name: 'EAST FACE AIR', x: 330, height: 32, length: 77, width: 24, gap: 95, landingHeight: 24, landingLength: 96, landingWidth: 70 },
+    { name: 'LONG SHOT', x: 708, height: 40, length: 99, width: 28, gap: 92.65, landingHeight: 28, landingLength: 102, landingWidth: 72 },
+    { name: 'BIG SKY', x: 1100, height: 44, length: 110, width: 30, gap: 86, landingHeight: 30, landingLength: 105, landingWidth: 73 },
+    { name: 'HOME STRETCH', x: 1500, height: 48, length: 121, width: 32, gap: 79.3, landingHeight: 32, landingLength: 108, landingWidth: 74 },
   ].map((j, i) => ({ ...j, s: 0, dx: 1, ds: 0, angle: Math.PI / 2, index: firstIndex + i,
     kick: 12, drop: 0, catchLength: j.gap + j.landingLength, recovery: 0, parkLine: true, major: false }));
-  const rails = [
-    { name: 'EAST FACE HANDRAIL', x: 680, length: 50 },
-    { name: 'LONG SHOT HANDRAIL', x: 1220, length: 60 },
-  ].map(r => ({ ...r, s: 0, dx: 1, ds: 0, grade: -grade, y: heightAt(r.x) + 3.8,
-    heading: -Math.PI / 2, kind: 'handrail', radius: .7, entryLength: 32 }));
   // A low circular transition saves approach speed for the air while retaining
   // the roughly 65-degree forward lip and straight horizontal takeoff edge.
   const lipAngle=72*Math.PI/180, curveLength=18, radius=curveLength/Math.sin(lipAngle);
@@ -58,12 +56,6 @@ export function createParkLine(nativeHeight, firstIndex) {
       }
       height += rise * (1 - smooth((Math.abs(s) - width + 6) / 6));
     }
-    for (const r of rails) {
-      const u = x - r.x;
-      if (u < -r.entryLength || u > 10) continue;
-      const rise = u <= 0 ? ((u + r.entryLength) / r.entryLength) ** 2 : 1 - smooth(u / 10);
-      height += 3.4 * rise * (1 - smooth((Math.abs(s) - 4) / 4));
-    }
     const q=quarterpipe,u=x-(q.x-q.length);
     let wall=0;
     if(u>=0 && u<=curveLength) wall=radius-Math.sqrt(Math.max(0,radius*radius-u*u));
@@ -79,5 +71,5 @@ export function createParkLine(nativeHeight, firstIndex) {
     return height;
   }
   return { name: 'EAST FACE PARK LINE', width: PARK_WIDTH, start: 180, end: 1960,
-    grade, heightAt, surface, jumps, rails, quarterpipe, takeoffs };
+    grade, heightAt, surface, jumps, quarterpipe, takeoffs };
 }

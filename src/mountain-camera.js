@@ -3,7 +3,7 @@ import { directionAt } from './mountain-physics.js';
 import { getLiftLayout,cablePoint,liftCoordinates } from './lift-layout.js';
 
 function cameraCable(state) {
-  if(state.railing ? ['log','handrail'].includes(state.rail.kind) : !state.airborne || !state.cableFlight || state.railCrash)return null;
+  if(state.railing ? state.rail.kind==='log' : !state.airborne || !state.cableFlight || state.railCrash)return null;
   const layout=getLiftLayout();
   // A pop clears rail immediately. Track the cable under the airborne skier
   // until recapture or snow landing, rather than changing views on release.

@@ -349,10 +349,9 @@ function updateUI() {
   $("trick-display").classList.toggle("bail", state.bailTimer > 0);
   if(state.railing) {
     const log=state.rail.kind==='log';
-    const handrail=state.rail.kind==='handrail';
-    $('trick-kicker').textContent=handrail?'EAST FACE PARK LINE':log?'FALLEN TIMBER':'SUMMIT EXPRESS';
-    $('trick-title').textContent=state.scoreLocked ? 'SCORE LOCKED' : state.combo ? `${state.combo.toLocaleString()} · ×${state.comboMultiplier}` : handrail?'HANDRAIL SLIDE':log?'LOG SLIDE':'CABLE SLIDE';
-    $('trick-detail').textContent=`${state.combo ? state.comboName + ' · ' : ''}${Math.round(state.rail.distance)} m · SPACE: POP · ← / →: 180${log || handrail?'':' · CLEAR THE TOWERS'}`;
+    $('trick-kicker').textContent=log?'FALLEN TIMBER':'SUMMIT EXPRESS';
+    $('trick-title').textContent=state.scoreLocked ? 'SCORE LOCKED' : state.combo ? `${state.combo.toLocaleString()} · ×${state.comboMultiplier}` : log?'LOG SLIDE':'CABLE SLIDE';
+    $('trick-detail').textContent=`${state.combo ? state.comboName + ' · ' : ''}${Math.round(state.rail.distance)} m · SPACE: POP · ← / →: 180${log?'':' · CLEAR THE TOWERS'}`;
   } else if (showAir) {
     $("trick-kicker").textContent = "MAKE IT COUNT";
     $("trick-title").textContent = state.scoreLocked ? 'SCORE LOCKED' : state.combo

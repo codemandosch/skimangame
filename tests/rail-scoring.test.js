@@ -16,7 +16,7 @@ function catchRail(kind, tricks = {}) {
     p = cablePoint(l, 0, (l.towers[i].u + l.towers[i + 1].u) / 2);
     ({ dx, ds, heading } = l);
   } else {
-    const log = SLIDE_FEATURES.find(l => kind === 'handrail' ? l.kind === kind : l.kind === 'fallen');
+    const log = SLIDE_FEATURES.find(l => l.kind === 'fallen');
     p = logPoint(log, log.length * .3);
     ({ dx, ds, heading } = log);
     p.grade = log.grade;
@@ -30,7 +30,7 @@ function catchRail(kind, tricks = {}) {
 }
 
 test('rail distance awards stop at 1000 points for every slide type', () => {
-  for (const kind of ['log', 'handrail', 'cable']) {
+  for (const kind of ['log', 'cable']) {
     const s = catchRail(kind);
     for (const [distance, points] of [[25, 500], [50, 1000], [500, 1000]]) {
       s.trickChain.distance = distance;
@@ -65,7 +65,7 @@ test('capped rail distance still combines with flips, spins and grabs', () => {
   assert.equal(s.score, 4975);
 });
 
-for (const kind of ['log', 'handrail', 'cable']) {
+for (const kind of ['log', 'cable']) {
   test(`${kind} distance builds points, survives dismount and banks on snow`, () => {
     const s = catchRail(kind);
     for (let i = 0; i < 24; i++) step(s, {}, dt);

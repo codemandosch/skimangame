@@ -1,22 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { PARK_LINE, HANDRAILS, groundHeight } from './blackridge.js';
-import { logPoint } from './log-layout.js';
-
-// An oblique box keeps the metal's top plane exactly on the ski-contact line.
-export function buildHandrailGeometry(rail) {
-  const p=[],indices=[];
-  for(const u of [0,rail.length]) {
-    const top=logPoint(rail,u);
-    for(const [side,down] of [[-1,0],[1,0],[-1,.85],[1,.85]])
-      p.push(top.x+rail.ds*side*rail.radius,top.y-down,-top.s+rail.dx*side*rail.radius);
-  }
-  for(const [a,b,c,d] of [[0,4,1,5],[2,3,6,7],[0,2,4,6],[1,5,3,7],[0,1,2,3],[4,6,5,7]])
-    indices.push(a,b,c,c,b,d);
-  const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setIndex(indices);g.computeVertexNormals();
-  return g;
-}
+import { PARK_LINE, groundHeight } from './blackridge.js';
 
 // Hundreds of posts, ticks and flags share a handful of materials: bake their
 // transforms and draw one merged mesh per material instead.
@@ -47,15 +31,6 @@ export function createParkLineWorld(scene) {
   // Lit dye, so the blue markings darken with the snow in shadow.
   const dye=new THREE.MeshStandardMaterial({name:'Blue snow dye',color:0x2f86b8,roughness:.9,transparent:true,opacity:.68,depthWrite:false,side:THREE.DoubleSide,
     polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
-  for(const rail of HANDRAILS) {
-    const mesh=new THREE.Mesh(buildHandrailGeometry(rail),metal);mesh.name=rail.name;mesh.userData.keep=true;
-    mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
-    for(let u=4;u<rail.length;u+=8) {
-      const p=logPoint(rail,u),base=groundHeight(p.x,p.s),height=Math.max(.1,p.y-.85-base);
-      const post=new THREE.Mesh(new THREE.BoxGeometry(.45,height,.55),orange);
-      post.position.set(p.x,base+height/2,-p.s);post.castShadow=true;group.add(post);
-    }
-  }
   function stripe(x,s,width,length) {
     const nx=Math.max(1,Math.ceil(length/2)),ns=Math.ceil(width/2),p=[],ix=[];
     for(let i=0;i<=nx;i++)for(let j=0;j<=ns;j++) {
@@ -74,7 +49,6 @@ export function createParkLineWorld(scene) {
     stripe(j.x+j.gap+2,0,j.landingWidth*2-12,2);
     for(const side of [-1,1])stripe(j.x+j.gap,side*(j.landingWidth-8),2,j.landingLength);
   }
-  for(const r of HANDRAILS)stripe(r.x-r.entryLength,0,12,2);
   const q=PARK_LINE.quarterpipe;
   stripe(q.x-2,0,q.width*2-12,2);
   stripe(q.x,0,q.takeoffWidth,1);

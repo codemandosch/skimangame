@@ -36,7 +36,7 @@ function leaveLog(s,api,pop) {
   s.yawOffset=yaw;
   api.launch(s,vy,0,0);s.spinSet=s.flipSet=true;
   s.railing=false;s.rail=null;
-  s.message=log.kind==='handrail'?(pop?'RAIL POP':'OFF THE RAIL'):pop?'LOG POP':log.kind==='kicker'?'TIMBER TAKEOFF':'OFF THE LOG';
+  s.message=pop?'LOG POP':log.kind==='kicker'?'TIMBER TAKEOFF':'OFF THE LOG';
   s.messageDetail='Carry your speed into the landing';s.messageTimer=2;
 }
 export function stepLog(s,input,dt,api) {
@@ -106,10 +106,10 @@ export function catchLog(s,from,input,api) {
     api.resolveLanding(s);
     s.railing=true;s.airborne=false;s.started=true;s.steer=0;s.charge=0;
     s.stanceYaw=0;s.yawOffset=0;s.switch=false;s.grab=0;
-    s.rail={kind:log.kind==='handrail'?'handrail':'log',log:log.id,u,velocity:slideVelocity(log,velocity),yaw:Math.PI/2,
+    s.rail={kind:'log',log:log.id,u,velocity:slideVelocity(log,velocity),yaw:Math.PI/2,
       distance:0,input:Math.sign(input.steer || input.spin || 0),turn:null,queuedTurn:0};
     positionOnLog(s);
-    s.message=log.kind==='handrail'?'HANDRAIL SLIDE':'LOG SLIDE';s.messageDetail='Release Space: pop · Left / right: 180';s.messageTimer=3;
+    s.message='LOG SLIDE';s.messageDetail='Release Space: pop · Left / right: 180';s.messageTimer=3;
     api.event(s,'rail');return true;
   }
   return false;

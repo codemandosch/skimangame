@@ -1,6 +1,6 @@
-import { LOGS, HANDRAILS } from './blackridge.js';
+import { LOGS } from './blackridge.js';
 export { LOGS };
-export const SLIDE_FEATURES = [...LOGS, ...HANDRAILS];
+export const SLIDE_FEATURES = LOGS;
 
 export function logCoordinates(log,x,s) {
   return {u:(x-log.x)*log.dx+(s-log.s)*log.ds,lateral:(x-log.x)*log.ds-(s-log.s)*log.dx};

@@ -1,5 +1,6 @@
 import { stepMountain } from './mountain-physics.js';
 import { skatingEffort, applySkating } from './skating.js';
+import { easeTopSpeed } from './top-speed.js';
 import { updateDaffy } from './daffy.js';
 import { advanceAerialRotation, aerialLanding } from './aerial-rotation.js';
 import { riderFrame, snowFrame } from './rider-frame.js';
@@ -126,7 +127,7 @@ export function respawn(s) {
 }
 function event(s, type) {
   if (type === 'rail' && s.trickChain) {
-    s.trickChain.rails.add(s.rail.kind === 'handrail' ? 'HANDRAIL SLIDE' : s.rail.kind === 'log' ? 'LOG SLIDE' : 'CABLE SLIDE');
+    s.trickChain.rails.add(s.rail.kind === 'log' ? 'LOG SLIDE' : 'CABLE SLIDE');
     updateCombo(s);
   } else if (type === 'bail') {
     s.trickChain = null;
@@ -448,7 +449,7 @@ export function step(s, input, dt) {
   const cableApi={launch,resolveLanding:state=>resolveLanding(state,undefined,{railCatch:true}),event};
   if(s.railing) {
     const rail=s.rail, distance=rail.distance, turns=rail.turns || 0;
-    (rail.kind==='log'||rail.kind==='handrail'?stepLog:stepCable)(s,input,dt,cableApi);
+    (rail.kind==='log'?stepLog:stepCable)(s,input,dt,cableApi);
     if (input.pop && s.airborne && !s.railing && !s.railCrash) {
       // Rail pops need time to aim the skis before committing to a spin.
       s.railPop = true;
@@ -481,8 +482,8 @@ export function step(s, input, dt) {
       groundHeight(s.x + dx * 0.5, s.s + ds * 0.5));
     const downhillPull = 31.05 * grade / Math.hypot(1, grade);
     const drag = s.tucking ? 0.0045 : 0.0065;
-    const accel = downhillPull - s.speed * s.speed * drag -
-      (s.braking ? 30 : 0.8) - Math.abs(s.steer) * 2.1;
+    const accel = easeTopSpeed(s.speed, downhillPull - s.speed * s.speed * drag -
+      (s.braking ? 30 : 0.8) - Math.abs(s.steer) * 2.1);
     s.speed = clamp(applySkating(s.speed, s.skating, dt) + accel * dt, 0, 69);
     s.vx = approach(s.vx, s.steer * s.speed * 0.56, 6 / (1 + s.landingSkid * 12), dt);
     s.heading = approach(s.heading, -Math.atan2(s.vx, s.speed), 8, dt);

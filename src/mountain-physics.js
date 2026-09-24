@@ -1,6 +1,7 @@
 import { groundHeight, gradientAt, rampAt, lipCoordinates, atBase, treeCollision } from './blackridge.js';
 import { groundContact } from './ground-contact.js';
 import { applySkating } from './skating.js';
+import { easeTopSpeed } from './top-speed.js';
 import { riderFrame } from './rider-frame.js';
 import { advanceLandingSkid, landingDriftStrength } from './landing-skid.js';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -24,8 +25,8 @@ export function stepMountain(s,input,dt,{launch,resolveLanding,updateAerial,even
     const gravity=31.05*grade/Math.hypot(1,g.x,g.s);
     // Tucking reduces air resistance; only the slope supplies acceleration.
     const drag=s.tucking ? .0045 : .006;
-    const accel=gravity - s.speed*s.speed*drag
-      - (s.braking ? 30 : .8) - Math.abs(s.steer)*1.5;
+    const accel=easeTopSpeed(s.speed, gravity - s.speed*s.speed*drag
+      - (s.braking ? 30 : .8) - Math.abs(s.steer)*1.5);
     if(s.started) s.speed=clamp(applySkating(s.speed, s.skating, dt)+accel*dt,0,69);
     // Recovery can outlast its initial timer if the landing line reaches an
     // uphill shoulder. Don't strand a slow skier pointing into that slope.

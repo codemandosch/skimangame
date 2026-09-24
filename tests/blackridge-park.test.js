@@ -3,9 +3,6 @@ import assert from 'node:assert/strict';
 import * as mountain from '../src/blackridge.js';
 import { createState, step } from '../src/physics.js';
 import { prepareParkRun, startRun } from '../src/run-start.js';
-import { mountainCameraTargets } from '../src/mountain-camera.js';
-import { buildHandrailGeometry } from '../src/park-line-world.js';
-import { logPoint } from '../src/log-layout.js';
 import { keyboardInput } from '../src/controls.js';
 
 function park() {
@@ -37,7 +34,7 @@ test('the park has a wide even pitch between its authored features', () => {
   const p = park();
   assert.ok(p.width >= 160);
   assert.ok(p.grade > .6 && p.grade < 1.2);
-  for (const x of [230, 620, 780, 1180, 1300, 1730]) {
+  for (const x of [230, 560, 940, 1330, 1740]) {
     const center = mountain.groundHeight(x, 0);
     for (const s of [-65, -30, 30, 65]) assert.ok(Math.abs(mountain.groundHeight(x, s) - center) < .01, `flat across at ${x}, ${s}`);
     assert.ok(Math.abs(mountain.gradientAt(x, 0).x + p.grade) < .01, `even slope at ${x}`);
@@ -47,18 +44,16 @@ test('the park has a wide even pitch between its authored features', () => {
   }
 });
 
-test('two substantial handrails sit between the three jumps with long low entry kickers', () => {
+test('four growing jumps sit in sequence with short even runouts and no rails', () => {
   const p = park();
-  assert.equal(p.jumps.length, 3);
-  assert.equal(mountain.HANDRAILS.length, 2);
-  mountain.HANDRAILS.forEach((rail, i) => {
-    assert.ok(rail.length >= 45 && rail.length <= 65);
-    assert.ok(rail.x > p.jumps[i].x && rail.x + rail.length < p.jumps[i + 1].x - p.jumps[i + 1].length);
-    const rise = mountain.groundHeight(rail.x, 0) - p.heightAt(rail.x);
-    assert.ok(rise >= 3 && rise <= 5);
-    assert.ok(mountain.groundHeight(rail.x - 20, 0) > p.heightAt(rail.x - 20) + .3);
+  assert.equal(p.jumps.length, 4);
+  assert.equal(p.rails, undefined);
+  p.jumps.slice(1).forEach((j, i) => {
+    const before = p.jumps[i], runout = j.x - j.length - (before.x + before.gap + before.landingLength);
+    assert.ok(j.height > before.height, `${j.name} is bigger than ${before.name}`);
+    assert.ok(runout > 80 && runout < 100, `${before.name} to ${j.name} runout: ${runout}`);
   });
-  assert.deepEqual(p.jumps.map(j => j.landingLength), [96, 102, 108]);
+  assert.deepEqual(p.jumps.map(j => j.landingLength), [96, 102, 105, 108]);
   assert.ok(p.jumps.every(j => j.landingWidth * 2 >= 140));
 });
 
@@ -87,16 +82,15 @@ test('park starts wait for input and point down the groomed strip', () => {
   assert.ok(s.x>before.x && Math.abs(s.s)<.001);
 });
 
-test('tucking without pops clears the closer landings and rides both rails', () => {
+test('tucking without pops clears all four landings', () => {
   const p=park();
-  const runout=p.jumps[2].x+p.jumps[2].gap+p.jumps[2].landingLength+4;
+  const last=p.jumps.at(-1),runout=last.x+last.gap+last.landingLength+4;
   for (const hz of [30, 60, 120]) {
-    const state = createState(), rails = new Set(), jumps = new Set();
+    const state = createState(), jumps = new Set();
     prepareParkRun(state);startRun(state);
     for (let i = 0; i < hz * 70 && state.x < runout; i++) {
       const airborne = state.airborne;
       step(state, {tuck:true}, 1 / hz);
-      if (state.rail?.kind === 'handrail') rails.add(state.rail.log);
       if (airborne && !state.airborne && state.maxHeight > 25) {
         const landing=p.jumps.find(j=>state.x>=j.x+j.gap && state.x<=j.x+j.gap+j.landingLength);
         assert.ok(landing,`land on a catch slope, not its front wall: ${state.x}`);
@@ -108,18 +102,15 @@ test('tucking without pops clears the closer landings and rides both rails', () 
       assert.ok(state.y >= mountain.groundHeight(state.x, state.s) - .01);
     }
     assert.ok(state.x >= runout, 'the run keeps moving downhill');
-    assert.equal(rails.size, 2, `both handrails at ${hz}Hz`);
-    assert.ok(jumps.size >= 3, `three big airs at ${hz}Hz`);
+    assert.equal(jumps.size, 4, `four big airs at ${hz}Hz`);
   }
 });
 
-test('the first kicker moves uphill while the landings and remaining features stay in place', () => {
+test('the kickers and landings keep their layout', () => {
   const p=park();
   assert.equal(p.start,180);
-  assert.deepEqual(p.jumps.map(j=>j.x),[354.7345,900,1440]);
-  assert.deepEqual(p.rails.map(r=>r.x),[680,1220]);
-  assert.deepEqual(p.jumps.map(j=>[j.gap,j.landingLength,j.landingHeight]),[[137.8655,96,24],[146.2,102,28],[136,108,32]]);
-  assert.ok(Math.abs(p.jumps[0].x+p.jumps[0].gap-492.6)<.001,'the first landing stays in place');
+  assert.deepEqual(p.jumps.map(j=>j.x),[330,708,1100,1500]);
+  assert.deepEqual(p.jumps.map(j=>[j.gap,j.landingLength,j.landingHeight]),[[95,96,24],[92.65,102,28],[86,105,30],[79.3,108,32]]);
 });
 
 test('the final quarterpipe has a clear run-in, a forward lip and a narrow level crest', () => {
@@ -268,29 +259,5 @@ test('crossing the downhill outer spine does not trigger an uphill launch', () =
     step(state,{},1/30);
     assert.ok(state.vy<=0,'follow the local slope instead of the central lip');
     assert.ok(state.takeoffFrame.pitch<=0,'departure frame follows the outer surface');
-  }
-});
-
-test('handrail top geometry, sliding, camera, turns and pops agree', () => {
-  for(const rail of mountain.HANDRAILS) {
-    const geometry=buildHandrailGeometry(rail),positions=geometry.getAttribute('position');
-    for(const [u,index] of [[0,0],[rail.length,4]]) {
-      const p=logPoint(rail,u);
-      assert.ok(Math.abs(positions.getY(index)-p.y)<.0002);
-      assert.ok(Math.abs(positions.getY(index+1)-p.y)<.0002);
-    }
-    geometry.dispose();
-    const s=rider(rail.x-rail.entryLength-10);
-    for(let i=0;i<240 && !s.railing;i++)step(s,{},1/120);
-    assert.equal(s.rail?.log,rail.id);assert.equal(s.rail?.kind,'handrail');
-    const yaw=s.rail.yaw;
-    step(s,{railTurn:1},1/120);
-    for(let i=0;i<46;i++)step(s,{},1/120);
-    assert.ok(Math.abs(s.rail.yaw-yaw-Math.PI)<.001);
-    const camera=mountainCameraTargets(s);
-    assert.ok(Object.values(camera.position).every(Number.isFinite));
-    assert.ok(camera.position.y>mountain.groundHeight(camera.position.x,-camera.position.z));
-    step(s,{pop:true},1/120);
-    assert.equal(s.railing,false);assert.equal(s.airborne,true);
   }
 });

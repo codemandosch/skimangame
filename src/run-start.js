@@ -5,7 +5,7 @@ import { PARK_LINE } from './blackridge.js';
 export function prepareParkRun(state) {
   Object.assign(state, { x: PARK_LINE.start, s: 0, y: groundHeight(PARK_LINE.start, 0),
     heading: -Math.PI / 2, speed: 0, started: false, awaitingStart: true,
-    messageDetail: 'East Face Park Line: three big airs, two handrails and a final spine jump.' });
+    messageDetail: 'East Face Park Line: four big airs and a final spine jump.' });
 }
 
 export function prepareRun(state) {

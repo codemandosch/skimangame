@@ -15,7 +15,7 @@ function popRail(kind, hz, input = {}) {
     s.heading = layout.heading;
     s.rail = { cable: 0, u, velocity: 32, yaw: Math.PI / 2, distance: 0 };
   } else {
-    const log = SLIDE_FEATURES.find(log => kind === 'handrail' ? log.kind === kind : log.kind === 'fallen');
+    const log = SLIDE_FEATURES.find(log => log.kind === 'fallen');
     Object.assign(s, logPoint(log, log.length / 2));
     s.heading = log.heading;
     s.rail = { kind, log: log.id, u: log.length / 2, velocity: 32, yaw: Math.PI / 2, distance: 0 };
@@ -33,7 +33,7 @@ function fly(s, seconds, hz, input = {}) {
 }
 
 test('rail pops allow pitching first and starting a full spin a quarter-second later', () => {
-  for (const kind of ['cable', 'handrail', 'log']) for (const hz of [30, 60, 120]) for (const spin of [-1, 1]) {
+  for (const kind of ['cable', 'log']) for (const hz of [30, 60, 120]) for (const spin of [-1, 1]) {
     const s = popRail(kind, hz);
     fly(s, .25, hz, { flip: 1 });
     assert.ok(s.flip > 0, 'can adjust ski pitch before starting the spin');
@@ -44,7 +44,7 @@ test('rail pops allow pitching first and starting a full spin a quarter-second l
 });
 
 test('a held rail-turn key needs release before it can trigger the delayed spin start', () => {
-  for (const kind of ['cable', 'handrail', 'log']) for (const spin of [-1, 1]) {
+  for (const kind of ['cable', 'log']) for (const spin of [-1, 1]) {
     const s = popRail(kind, 120, { spin, steer: spin });
     fly(s, .2, 120, { spin, steer: spin });
     assert.ok(Math.abs(s.spinVelocity) < 1, 'held rail turn only gets normal air correction');
@@ -57,7 +57,7 @@ test('a held rail-turn key needs release before it can trigger the delayed spin 
 });
 
 test('the longer rail spin-start window expires and does not carry into snow jumps or respawns', () => {
-  for (const kind of ['cable', 'handrail', 'log']) {
+  for (const kind of ['cable', 'log']) {
     const s = popRail(kind, 120);
     fly(s, .4, 120);
     step(s, { spin: 1 }, 1 / 120);
