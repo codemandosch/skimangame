@@ -9,6 +9,7 @@
       content="Drop into MAD STEEZ: an open-mountain freestyle skiing game."
     />
     <title>MAD STEEZ — Freestyle Skiing</title>
+    <link rel="preload" as="image" href="/branding/alpine-loading-1920x1080.jpg" />
   </head>
   <body>
     <svg class="logo-defs" aria-hidden="true" focusable="false">
@@ -38,18 +39,15 @@
           <feColorMatrix in="dots" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -3 2" result="dotMask" />
           <feComposite in="soft" in2="dotMask" operator="in" />
         </filter>
-        <clipPath id="steez-skier-clip"><polygon points="0,0 254,0 254,128 218,240 218,300 0,300" /></clipPath>
         <clipPath id="steez-face-clip"><use href="#steez-word" /></clipPath>
         <text id="steez-word" x="258" y="236" textLength="570" lengthAdjust="spacingAndGlyphs">STEEZ</text>
         <text id="steez-tag" x="300" y="118" textLength="215" lengthAdjust="spacingAndGlyphs">Mad</text>
         <path id="steez-sparkle" d="M0-14C1.6-4 4-1.6 14 0 4 1.6 1.6 4 0 14-1.6 4-4 1.6-14 0-4-1.6-1.6-4 0-14z" />
-        <symbol id="mad-steez-logo" viewBox="0 0 900 300">
+        <symbol id="mad-steez-logo" viewBox="210 -20 690 320">
           <!-- Paint mist on the wall behind the piece -->
           <g filter="url(#steez-overspray)">
             <ellipse cx="560" cy="170" rx="330" ry="95" fill="url(#steez-mist)" />
-            <circle cx="118" cy="150" r="104" fill="url(#steez-mist)" />
           </g>
-          <image href="/branding/mad-steez-logo-horizontal-v3.png" width="900" height="300" clip-path="url(#steez-skier-clip)" />
           <g class="steez-word" transform="skewX(-9) translate(34 0)">
             <!-- White cloud outline around face and 3D block -->
             <g fill="#f4f1ea" stroke="#f4f1ea" stroke-width="26" stroke-linejoin="round">
@@ -177,7 +175,7 @@
     </aside>
     <section id="start-panel" aria-labelledby="start-title">
       <div class="panel start-panel">
-        <svg class="menu-logo" viewBox="0 0 900 300" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
+        <svg class="menu-logo" viewBox="0 0 690 320" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
         <div class="eyebrow">FIND YOUR LINE</div>
         <h2 id="start-title">CHOOSE YOUR LINE.</h2>
         <p><b>← → / J L</b> Turn on the summit<br />Hold <kbd>Ctrl</kbd> to skate and drop in.</p>
@@ -192,7 +190,7 @@
       aria-labelledby="pause-title"
     >
       <div class="panel">
-        <svg class="menu-logo" viewBox="0 0 900 300" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
+        <svg class="menu-logo" viewBox="0 0 690 320" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
         <div class="eyebrow">TAKE A BREATHER</div>
         <h2 id="pause-title">ON HOLD.</h2>
         <p>The mountain can wait.</p>
@@ -245,14 +243,11 @@
       </div>
     </section>
     <div id="loading">
-      <svg class="loading-range" viewBox="0 0 1200 300" preserveAspectRatio="none" aria-hidden="true">
-        <path class="far" d="M0 300V190l90-38 70 22 110-84 80 52 60-30 120 70 90-66 140 88 70-40 120 60 80-44 90 36 80-20V300z"/>
-        <path class="near" d="M0 300V238l140-46 90 26 170-128 70 58 40-22 150 112 110-58 120 60 90-30 110 44 110-12V300z"/>
-        <path class="snow" d="M400 90l70 58 40-22 30 22-40 4-34-20-38 26-48-18-60 20 80-70z"/>
-      </svg>
-      <svg class="loading-logo" viewBox="0 0 900 300" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
-      <h2>FINDING FRESH SNOW<span>…</span></h2>
-      <div class="loading-bar" aria-hidden="true"><i></i></div>
+      <svg class="loading-logo" viewBox="0 0 690 320" role="img" aria-label="Mad Steez"><use href="#mad-steez-logo" /></svg>
+      <div class="loading-status" role="status">
+        <h2>FINDING FRESH SNOW<span>…</span></h2>
+        <div class="loading-bar" aria-hidden="true"><i></i></div>
+      </div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
