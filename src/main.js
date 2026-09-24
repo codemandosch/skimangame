@@ -242,11 +242,18 @@ document.addEventListener('click', (event) => {
   if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, label, [role="button"], #radio-player, #loading')) return;
   if (state.paused) startOrResume();
 });
-window.addEventListener("resize", () => {
+let appliedSize = "";
+function fitToWindow() {
+  // A tab opened hidden can start at 0×0; resize whenever the window has a
+  // real size that the render targets do not match yet.
+  const size = `${innerWidth}x${innerHeight}`;
+  if (size === appliedSize || !innerWidth || !innerHeight) return;
+  appliedSize = size;
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   pipeline.setSize(innerWidth, innerHeight);
-});
+}
+window.addEventListener("resize", fitToWindow);
 
 function cameraTargets() {
   if(COURSE.openWorld) {
@@ -375,6 +382,7 @@ function updateUI() {
 }
 
 function frame(time) {
+  fitToWindow();
   const dt = Math.min((time - previousTime) / 1000 || 0, 0.06);
   previousTime = time;
   if (!state.paused && !state.finished) {
