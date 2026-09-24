@@ -8,10 +8,14 @@ import { createRiderPose, updateRiderPose } from "./rider-pose.js";
 import { createRiderMaterials } from "./rider-materials.js";
 import { loadSkinnedRider } from "./skinned-rider.js";
 import {
+  GAMEPLAY_SKI_CLEARANCE,
   hideProceduralSkiBoots,
   loadBlackridgeSkis,
 } from "./blackridge-ski.js";
 const up = new THREE.Vector3(0, 1, 0);
+// Standing drop that brings the ski bases from the rider's old offset down onto
+// the contact surface: the tips and tails touch, and the camber lifts underfoot.
+const SKI_SEAT = 0.03 + GAMEPLAY_SKI_CLEARANCE;
 function skiGeometry() {
   const p = [],
     uv = [],
@@ -338,9 +342,13 @@ export function createSkier(scene) {
       if (s.time < previousTime) Object.assign(pose, createRiderPose());
       previousTime = s.time;
       updateRiderPose(pose, s, s.paused || s.finished ? 0 : dt);
-      root.position.set(s.x, s.y + 0.03, -s.s);
+      // The ski bases sit GAMEPLAY_SKI_CLEARANCE above their pose frames. Lower
+      // the rider so they rest on the snow or rail rather than hovering over it.
+      // Wipeouts keep the height their tumbles are posed against the snow at.
+      const standing = 1 - pose.wipeout;
+      root.position.set(s.x, s.y + 0.03 - SKI_SEAT * standing, -s.s);
       const frame = riderFrame(s);
-      if(COURSE.openWorld && !s.airborne && !s.railing) root.position.y += frame.clearance + .06;
+      if(COURSE.openWorld && !s.airborne && !s.railing) root.position.y += frame.clearance + .06 * pose.wipeout;
       root.position.y -= landingSink(s);
       heading.rotation.set(frame.pitch, s.heading, frame.roll, "YXZ");
       riderRotation(s, spin.quaternion);
@@ -409,5 +417,9 @@ export function createSkier(scene) {
     console.warn("BLACKRIDGE skis could not load; keeping the procedural skis.", error);
     return false;
   });
+  // Stay hidden until the real rider and skis arrive, so the procedural
+  // placeholder never flashes on screen. Failed loads still show the fallback.
+  root.visible = shadow.visible = false;
+  Promise.all([rider.ready, rider.skiReady]).then(() => { root.visible = shadow.visible = true; });
   return rider;
 }
