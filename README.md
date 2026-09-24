@@ -95,6 +95,7 @@ Rendering, landing capture and swept tower collisions share `src/lift-layout.js`
 - `tests/rider-pose.test.js`: hand/ski contact, boot alignment, limb lengths and smooth turning regressions.
 - `tests/skinned-rider.test.js`: contact and transition checks against the actual shipped GLB, including transformed parent spaces.
 - `tests/visual/rider.html`: development-only close-up pose viewer. Open this path on the Vite server to inspect grabs, leg crossing and carving from different angles.
+- `tests/visual/grabs.html`: development-only contact sheet of every held grab from several angles, showing how far each skinned hand misses its ski. Narrow it with `?grabs=mute,japan&views=front,side&size=400`.
 
 ```sh
 npm test

@@ -52,6 +52,7 @@ export function createRiderPose() {
     japanBlend: 0,
     hangoutBlend: 0,
     bowBlend: 0,
+    raiseBlend: 0,
     crouch: 0,
     skid: 0,
     tuck: 0,
@@ -66,6 +67,9 @@ export function createRiderPose() {
     hips: v(),
     torsoRotation: new Euler(),
     torsoQuaternion: new Quaternion(),
+    // Extra forward curl and sideways bend through the spine, in radians.
+    spineCurl: 0,
+    spineBend: 0,
     skis: [],
     legs: [],
     arms: [],
@@ -119,6 +123,10 @@ export function updateRiderPose(p, s, dt) {
   p.japan = MathUtils.smoothstep(p.japanBlend, 0, 1);
   p.hangout = MathUtils.smoothstep(p.hangoutBlend, 0, 1);
   p.bow = MathUtils.smoothstep(p.bowBlend, 0, 1);
+  // Mute and Japan throw the free hand up; it rises and settles more slowly
+  // than the grab so switching grabs does not yank the arm across the body.
+  p.raiseBlend = damp(p.raiseBlend, s.airborne && (s.grab === 1 || s.grab === 5) ? 1 : 0, s.airborne ? 4 : 10, dt);
+  const raise = MathUtils.smoothstep(p.raiseBlend, 0, 1);
   const rearGrab = p.tail + p.blunt;
   p.tuck = damp(p.tuck, s.tucking ? 1 : 0, 9, dt);
   p.extension = damp(
@@ -145,6 +153,7 @@ export function updateRiderPose(p, s, dt) {
   // Contact wins over the trailing grab blend on the landing frame.
   const skiMute = s.airborne ? p.mute : 0;
   const skiTail = s.airborne ? rearGrab : 0;
+  const skiBlunt = s.airborne ? p.blunt : 0;
   const skiOcto = s.airborne ? p.octo : 0;
   const skiJapan = s.airborne ? p.japan : 0;
   const skiHangout = s.airborne ? p.hangout : 0;
@@ -154,7 +163,7 @@ export function updateRiderPose(p, s, dt) {
   const chatter =
     (s.railing ? 0 : ground) * Math.sin(s.time * 17) * Math.min(0.013, s.speed * 0.00045);
   p.hips.set(
-    lean * 0.46 + p.mute * 0.14,
+    lean * 0.46 + p.mute * 0.04,
     0.99 -
       p.crouch -
       pressure * 0.17 +
@@ -162,29 +171,36 @@ export function updateRiderPose(p, s, dt) {
       rearGrab * 0.02 +
       p.extension +
       chatter,
-    0.03 - p.mute * 0.05 + rearGrab * 0.03,
+    0.03 + p.mute * 0.02 + rearGrab * 0.03,
   );
   p.torsoRotation.set(
-    -0.12 - p.crouch * 0.5 - p.tuck * 0.28 - p.mute * 0.3 - p.octo * 0.25,
-    rearGrab * -0.62 - p.mute * 0.18 + lean * 0.1 - p.octo * 0.3,
-    -lean * (0.52 + p.skid * .16) + p.mute * 0.2,
+    -0.12 - p.crouch * 0.5 - p.tuck * 0.28 - p.octo * 0.25,
+    rearGrab * -0.62 - p.blunt * 0.15 + lean * 0.1 - p.octo * 0.3,
+    -lean * (0.52 + p.skid * .16),
   );
+  // Mute curls the chest over the tucked knees and turns it toward the grabbed
+  // ski, dropping the reaching shoulder instead of stretching the arm.
+  p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.46, p.mute);
+  p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, -0.42, p.mute);
+  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, 0.3, p.mute);
   // Open the shoulders along the split so each hand can reach its ski end.
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.05, p.daffy);
   p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, -0.9, p.daffy);
   p.torsoRotation.z *= 1 - p.daffy;
-  // Open the opposite shoulder toward the folded ski behind the hips.
-  p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, 0.15, p.japan);
-  p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, 0.85, p.japan);
-  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, -0.12, p.japan);
+  // Japan turns the chest toward the tucked ski and drops the reaching shoulder.
+  p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.6, p.japan);
+  p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, -0.35, p.japan);
+  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, 0.25, p.japan);
+  p.spineCurl = -0.25 * p.mute - 0.4 * p.japan;
+  p.spineBend = -0.1 * p.japan + 0.3 * p.bow;
   // Relax into an open, arched posture; aerial rotation remains physics-owned.
   p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, Math.PI / 2 + 0.15, p.hangout);
   p.torsoRotation.y *= 1 - p.hangout;
   p.torsoRotation.z *= 1 - p.hangout;
   // Lean toward the extended leg to keep both ski grips within reach.
-  p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.2, p.bow);
-  p.torsoRotation.y *= 1 - p.bow;
-  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, 0.45, p.bow);
+  p.torsoRotation.x = MathUtils.lerp(p.torsoRotation.x, -0.35, p.bow);
+  p.torsoRotation.y = MathUtils.lerp(p.torsoRotation.y, -0.15, p.bow);
+  p.torsoRotation.z = MathUtils.lerp(p.torsoRotation.z, 0.6, p.bow);
   p.hips.x += stride * skate * .12;
   p.hips.y -= skate * (.06 + poleStroke * .09);
   p.torsoRotation.x -= skate * (.12 + poleStroke * .22);
@@ -203,43 +219,57 @@ export function updateRiderPose(p, s, dt) {
       side * (0.34 + Math.abs(lean) * 0.035),
       // Leave room below the pelvis for a squat instead of folding boots
       // up to hip height and forcing the knees out beside the torso.
-      skiMute * (i ? 0.4 : 0.28) + skiTail * (i ? 0.5 : 0.44),
-      skiMute * -0.12 + skiTail * 0.04 - side * lean * 0.1,
+      skiTail * (i ? 0.5 : 0.44),
+      skiTail * 0.04 - side * lean * 0.1,
     );
     const rotation = new Euler(
-      skiMute * 0.55 - skiTail * (i ? 1.05 : 0.58),
-      // Mute and blunt cross at the tips; blunt still reaches for the tail.
-      -side * 0.08 * (s.railing ? 0 : ground) + skiMute * side * 0.65 + skiTail * side * 0.06 + (s.airborne ? p.blunt : 0) * side * 0.59,
-      -edge * 0.68 + skiMute * side * 0.06,
+      -skiTail * (i ? 1.05 : 0.58),
+      -side * 0.08 * (s.railing ? 0 : ground) + skiTail * side * 0.06,
+      -edge * 0.68,
       "YXZ",
     );
-    // Raise the front of one ski and the tail of the other into a crossed
-    // two-hand reach, keeping the bindings below the pelvis.
-    position.x += -side * skiOcto * 0.1;
-    position.y += skiOcto * (i ? 0.36 : 0.42);
-    position.z += skiOcto * (i ? -0.16 : -0.12);
-    rotation.x += skiOcto * (i ? 0.7 : -1.0);
-    rotation.y += skiOcto * (i ? 0.6 : 1.0);
+    // Blunt keeps the skis parallel and stands the grabbed ski up steeper so
+    // the hand closes on the very end of its tail.
+    if (i) {
+      rotation.x -= skiBlunt * 0.2;
+      position.y -= skiBlunt * 0.1;
+      position.z += skiBlunt * 0.04;
+    }
+    // Mute pulls both knees up together and crosses the skis in an X just in
+    // front of the boots; the grabbed ski rides on top, rolled toward the hand.
+    position.lerp(i ? v(0.08, 0.56, -0.24) : v(-0.1, 0.46, -0.16), skiMute);
+    rotation.x = MathUtils.lerp(rotation.x, i ? 0.3 : 0.18, skiMute);
+    rotation.y = MathUtils.lerp(rotation.y, i ? 0.6 : -0.45, skiMute);
+    rotation.z = MathUtils.lerp(rotation.z, i ? 0.3 : -0.12, skiMute);
+    // Octo tucks both knees together like a mute, then lifts the nose of one
+    // ski and the tail of the other so the pair crosses in an X. Rotations
+    // add on top of the fading tail grab so a held tail is not whipped away.
+    position.lerp(i ? v(0.08, 0.5, -0.2) : v(-0.1, 0.46, -0.04), skiOcto);
+    rotation.x += skiOcto * (i ? 0.7 : -0.9);
+    rotation.y += skiOcto * (i ? 0.55 : 0.6);
+    rotation.z += skiOcto * (i ? 0.2 : -0.1);
     // Daffy splits the legs fore/aft without swapping sides: front nose up,
     // rear tail up, with a straighter front leg and a folded rear knee.
     position.lerp(v(side * 0.25, i ? 0.55 : 0.16, i ? 0.62 : -0.7), p.daffy);
     rotation.x = MathUtils.lerp(rotation.x, i ? -1.4 : 1.4, p.daffy);
     rotation.y *= 1 - p.daffy;
     rotation.z *= 1 - p.daffy;
-    // Japan: extend leg 0 down/out while folding leg 1 back under the seat.
-    position.lerp(i ? v(0.16, 1.12, 0.38) : v(-0.5, 0.03, -0.28), skiJapan);
-    rotation.x = MathUtils.lerp(rotation.x, i ? -1.1 : 0.25, skiJapan);
-    rotation.y = MathUtils.lerp(rotation.y, -0.3, skiJapan);
-    rotation.z = MathUtils.lerp(rotation.z, i ? -0.2 : 0.05, skiJapan);
+    // Japan: poke leg 0 long, forward and down while leg 1 folds knee-down,
+    // pulling its boot up under the seat so that ski runs fore-aft at hip
+    // height behind the poked leg.
+    position.lerp(i ? v(-0.06, 0.6, 0.22) : v(-0.23, 0.05, -0.74), skiJapan);
+    rotation.x = MathUtils.lerp(rotation.x, i ? 0.12 : 0.35, skiJapan);
+    rotation.y = MathUtils.lerp(rotation.y, i ? -0.05 : -0.25, skiJapan);
+    rotation.z = MathUtils.lerp(rotation.z, i ? -0.35 : 0.2, skiJapan);
     position.lerp(v(side * 0.24, i ? 0.36 : 0.28, -0.1), skiHangout);
     rotation.x = MathUtils.lerp(rotation.x, 0.15, skiHangout);
     rotation.y = MathUtils.lerp(rotation.y, side * 0.35, skiHangout);
     rotation.z = MathUtils.lerp(rotation.z, 0, skiHangout);
     // Bow and Arrow extends one boot sideways and folds the other inward.
-    position.lerp(i ? v(-0.2, 0.68, -0.12) : v(-1.05, 1.25, -0.1), skiBow);
+    position.lerp(i ? v(-0.2, 0.68, -0.12) : v(-1.16, 0.85, -0.24), skiBow);
     rotation.x = MathUtils.lerp(rotation.x, i ? 0.9 : 0.1, skiBow);
     rotation.y = MathUtils.lerp(rotation.y, i ? -0.25 : 0, skiBow);
-    rotation.z = MathUtils.lerp(rotation.z, i ? 0.1 : -1.2, skiBow);
+    rotation.z = MathUtils.lerp(rotation.z, i ? 0.1 : -1.25, skiBow);
     const push = Math.max(0, stride * side), recover = Math.max(0, -stride * side);
     position.x += side * push * skate * .22;
     position.z += side * stride * skate * .22;
@@ -252,10 +282,11 @@ export function updateRiderPose(p, s, dt) {
     const hip = v(side * 0.18, 0, 0)
       .applyQuaternion(p.torsoQuaternion)
       .add(p.hips);
-    const kneePole = v(side * (0.45 - p.mute * 0.2) + lean * 0.42,
-      0.6 + p.mute * 0.2 + rearGrab * 0.9, -1.1);
+    const kneePole = v(side * 0.45 + lean * 0.42, 0.6 + rearGrab * 0.9, -1.1);
+    // Knees stay together and drive up toward the chest.
+    kneePole.lerp(v(side * 0.12, 1.35, -1.2), skiMute + skiOcto);
     kneePole.lerp(v(side * 0.3, i ? 0.35 : 0.65, i ? 0.05 : -1.1), p.daffy);
-    kneePole.lerp(v(side * 0.35, 0.5, -0.8), skiJapan);
+    kneePole.lerp(i ? v(0.25, -0.5, -0.6) : v(-0.3, 1.2, -1.2), skiJapan);
     kneePole.lerp(i ? v(0.35, 0.65, -0.9) : v(-0.7, 0.95, -0.5), skiBow);
     const leg = solveLimb(
       hip,
@@ -266,7 +297,8 @@ export function updateRiderPose(p, s, dt) {
     );
     p.legs.push({ hip, knee: leg.joint, foot: leg.end, kneePole });
   }
-  const muteAnchor = v(-0.075, 0.115, -1.0)
+  // Just in front of the toe piece on the outside edge, not out at the tip.
+  const muteAnchor = v(0.06, 0.115, -0.34)
     .applyQuaternion(p.skis[1].quaternion)
     .add(p.skis[1].position);
   const tailAnchor = v(0.065, 0.115, 1.05)
@@ -284,10 +316,13 @@ export function updateRiderPose(p, s, dt) {
   const daffyAnchors = p.skis.map((ski, i) =>
     v(0, 0.115, i ? 1.2 : -1.2).applyQuaternion(ski.quaternion).add(ski.position));
   const bowAnchors = p.skis.map((ski, i) =>
-    v(0, 0.115, i ? -0.65 : -0.15).applyQuaternion(ski.quaternion).add(ski.position));
-  const japanAnchor = v(0, -0.035, 0)
+    v(0, 0.115, i ? -0.65 : -0.05).applyQuaternion(ski.quaternion).add(ski.position));
+  // Inside edge of the tucked ski, just in front of the toe piece.
+  const japanAnchor = v(-0.07, 0.1, -0.35)
     .applyQuaternion(p.skis[1].quaternion).add(p.skis[1].position);
   p.grabAnchor.copy(s.grab === 5 ? japanAnchor : s.grab === 3 ? bluntAnchor : s.grab === 2 ? tailAnchor : muteAnchor);
+  // A free hand thrown up beside the helmet, relative to the chest.
+  const raisedHand = v(0.6, 0.66, 0.08).applyQuaternion(p.torsoQuaternion).add(p.hips);
   for (let i = 0; i < 2; i++) {
     const side = i ? 1 : -1;
     const shoulder = v(side * 0.32, 0.61, -0.045)
@@ -302,6 +337,8 @@ export function updateRiderPose(p, s, dt) {
     target.lerp(v(side*.53, 1.3-poleStroke*.5, -.65+poleStroke*.96), skate);
     if(s.railing)target.set(side*.86,1.23,-.16);
     if (i === 0) target.lerp(muteAnchor, p.mute);
+    // The free hand rises beside the head for balance and style.
+    else target.lerp(raisedHand, raise);
     if (i === 1) target.lerp(rearAnchor, rearGrab);
     target.lerp(octoAnchors[i], p.octo);
     target.lerp(daffyAnchors[i], p.daffy);
@@ -309,16 +346,14 @@ export function updateRiderPose(p, s, dt) {
     target.lerp(v(side * 0.96, 0.52, 0).applyQuaternion(p.torsoQuaternion).add(p.hips), p.hangout);
     target.lerp(bowAnchors[i], p.bow);
     target.lerp(v(side * 0.64, 0.24, 0.93), p.wipeout);
-    const limb = solveLimb(
-      shoulder,
-      target,
-      v(side * 1.1 + lean * 0.2, 1.25, 0.25),
-      0.42,
-      0.4,
-    );
+    const elbowPole = v(side * 1.1 + lean * 0.2, 1.25, 0.25);
+    // A raised free arm keeps its elbow out and back rather than flipping.
+    if (i === 1) elbowPole.lerp(v(1.4, 0.6, 0.2), raise);
+    const limb = solveLimb(shoulder, target, elbowPole, 0.42, 0.4);
     p.arms.push({
       shoulder,
       elbow: limb.joint,
+      elbowPole,
       hand: limb.end,
       polePitch: MathUtils.lerp(-.6, -.12-poleStroke*.95, skate),
       grip: Math.min(1, (i === 0 ? p.mute + p.japan : rearGrab) + p.octo + p.daffy + p.bow),
