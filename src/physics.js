@@ -2,7 +2,8 @@ import { stepMountain } from './mountain-physics.js';
 import { skatingEffort, applySkating } from './skating.js';
 import { updateDaffy } from './daffy.js';
 import { advanceAerialRotation, aerialLanding } from './aerial-rotation.js';
-import { riderFrame } from './rider-frame.js';
+import { riderFrame, snowFrame } from './rider-frame.js';
+import { landingAttitude, chooseWipeout, LANDING_TILT_LIMIT, WIPEOUT_DURATION } from './wipeout.js';
 import { beginLandingSkid, advanceLandingSkid } from './landing-skid.js';
 import { captureLandingImpact } from './landing-impact.js';
 import { createScoringState, advanceScoringWindow, bankScore } from './scoring-window.js';
@@ -104,6 +105,7 @@ export function createState() {
     landingSlopeInfluence: 0,
     landingSlopeHeading: 0,
     landingRecovery: 0,
+    crash: null,
     message: "FIND YOUR LINE",
     messageDetail: COURSE.openWorld ? "Choose a direction. Hold Ctrl to skate." : `${JUMPS.length} jumps. Make them count.`,
     messageTimer: 4,
@@ -146,6 +148,7 @@ function launch(s, vy, flipInput = 0, spinInput = 0, frame = riderFrame(s), upwa
   s.landingPulse = 0;
   s.landingImpact = null;
   s.landingRecovery = 0;
+  s.crash = null;
   s.tucking = false;
   s.skating = 0;
   s.braking = false;
@@ -254,10 +257,12 @@ function updateCombo(s) {
 export function resolveLanding(s, gradient, { railCatch = false, collision = false } = {}) {
   const landing = aerialLanding(s);
   const landingYaw = landing.yaw;
-  // Yaw changes the direction of the skis, not their tilt relative to horizontal.
-  // Allow any upright landing; vertical or inverted skis cause a wipeout.
+  // Yaw changes the direction of the skis, not their tilt against the snow.
+  // On snow, the body must be within LANDING_TILT_LIMIT of the slope's normal.
+  const attitude = landingAttitude(s, snowFrame(s));
   const daffyRecovered = s.daffyProgress === 0;
-  const safe = daffyRecovered && landing.upright && !s.railCrash && !collision;
+  const upright = railCatch ? landing.upright : attitude.tilt < LANDING_TILT_LIMIT;
+  const safe = daffyRecovered && upright && !s.railCrash && !collision;
   const trick = trickValue(s);
   if (safe && railCatch) {
     const chain = s.trickChain ??= { base:0, names:[], categories:new Set(), rails:new Set(), distance:0, turns:0 };
@@ -295,11 +300,15 @@ export function resolveLanding(s, gradient, { railCatch = false, collision = fal
     s.landingImpact = null;
     s.landingRecovery = 0;
     s.switch = false;
-    s.bailTimer = 1.65;
-    s.speed = s.speed * 0.38;
-    s.message = "WIPED OUT";
+    const fall = chooseWipeout(attitude);
+    s.crash = { ...fall, impact: attitude.relative.toArray() };
+    s.bailTimer = WIPEOUT_DURATION[fall.kind];
+    // Tumbles scrub more speed than sliding out on your back.
+    s.speed = s.speed * (fall.kind === 'backseat' ? 0.38 : fall.kind === 'sideslam' ? 0.32 : 0.26);
+    s.message = { backseat: "WIPED OUT", faceplant: "FACEPLANT", sideslam: "SLAMMED",
+      tomahawk: "TOMAHAWK", cartwheel: "CARTWHEEL" }[fall.kind];
     s.messageDetail = s.railCrash ? 'Pop earlier to clear the lift tower' : daffyRecovered
-      ? "Land with your skis less than 90° from horizontal"
+      ? "Match your skis to the slope before touchdown"
       : "Release A early enough to recover from the daffy before landing";
     s.messageTimer = 2;
     event(s, "bail");
