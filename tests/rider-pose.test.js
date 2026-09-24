@@ -4,14 +4,17 @@ import { Euler, Vector3 } from "three";
 import { createRiderPose, updateRiderPose } from "../src/rider-pose.js";
 import { createState, step, resolveLanding } from "../src/physics.js";
 
-test("tuck input lowers the hips and brings hands forward while skiing", () => {
+test("tuck input softens the knees, folds the chest forward and drops the hands", () => {
   const s = createState();
   const neutral = settle(s);
   step(s, { tuck: true }, 1 / 120);
   const tucked = settle(s);
   assert.equal(s.tucking, true);
-  assert.ok(tucked.hips.y < neutral.hips.y - 0.14);
-  assert.ok(tucked.arms[0].hand.z < neutral.arms[0].hand.z - 0.05);
+  assert.ok(tucked.hips.y < neutral.hips.y - 0.06, "knees bend a little more");
+  assert.ok(tucked.hips.y > neutral.hips.y - 0.2, "not a deep squat");
+  assert.ok(tucked.torsoRotation.x < neutral.torsoRotation.x - 0.4, "the chest folds forward");
+  assert.ok(tucked.arms[0].hand.y < neutral.arms[0].hand.y - 0.2, "arms hang low");
+  assert.ok(tucked.arms[0].hand.z < neutral.arms[0].hand.z, "hands stay ahead of the body");
   step(s, {}, 1 / 120);
   assert.equal(s.tucking, false);
 });

@@ -92,7 +92,7 @@ export function createSkinnedRiderRig(model, space) {
         const footName = `${prefix}_Foot`;
         const footTarget = vector(0, rest[footName].point.y + 0.17, 0.045)
           .applyQuaternion(ski.quaternion).add(ski.position);
-        const kneePole = vector(side * 0.55 + pose.hips.x * 0.9,
+        const kneePole = vector(side * (0.55 - pose.snowStance * 0.33) + pose.hips.x * 0.9,
           0.6 + pose.blunt * 0.9, -1.1);
         // Shaped grabs aim the knees themselves; the rest keep the rig's stance.
         kneePole.lerp(pose.legs[i].kneePole,
@@ -125,7 +125,7 @@ export function createSkinnedRiderRig(model, space) {
       // Counter-flex the neck to keep the gaze ahead; glance over a shoulder in switch.
       const headYaw = pose.lookBack * 0.85 - (1 - pose.lookBack) * pose.lean * 0.22;
       rotate("Head", pose.torsoQuaternion.clone()
-        .multiply(new Quaternion().setFromEuler(new Euler(pose.tuck * 0.28 + pose.crouch * 0.18 + pose.mute * 0.16, headYaw, 0)))
+        .multiply(new Quaternion().setFromEuler(new Euler(pose.tuck * 0.5 + pose.crouch * 0.18 + pose.mute * 0.16, headYaw, 0)))
         .multiply(rest.Head.rotation));
       model.updateMatrixWorld(true);
       return { feet, hands };
