@@ -10,13 +10,13 @@ const unwrap = (angle, previous) => previous + Math.atan2(Math.sin(angle - previ
 
 // The trick frame stays fixed at takeoff. Integrating one angular-velocity
 // vector avoids the continually moving flip axis of yaw/pitch Euler stacking.
-export function advanceAerialRotation(s, dt) {
+export function advanceAerialRotation(s, dt, spinScale = 1) {
   if (!s.airRotation) {
     s.airRotation = new Quaternion().setFromEuler(euler.set(-s.flip, -s.spin, 0));
     s.airPitch = s.flip;
     s.airYaw = s.spin;
   }
-  axis.set(-s.flipVelocity, -s.spinVelocity, 0);
+  axis.set(-s.flipVelocity, -s.spinVelocity * spinScale, 0);
   const speed = axis.length();
   if (speed) {
     delta.setFromAxisAngle(axis.multiplyScalar(1 / speed), speed * dt);
