@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MAD STEEZ — Loading Screen Preview</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <script type="module">
+      // Show the actual loading markup without starting the game or fading out.
+      const response = await fetch('/');
+      const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+      for (const selector of ['.logo-defs', '#loading']) {
+        document.body.append(document.importNode(page.querySelector(selector), true));
+      }
+    </script>
+  </body>
+</html>

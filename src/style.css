@@ -441,7 +441,7 @@ footer span {
   width: 100%;
   max-width: 100%;
   height: auto;
-  aspect-ratio: 3;
+  aspect-ratio: 690 / 320;
   margin: 0 auto 20px;
   overflow: visible;
 }
@@ -718,8 +718,9 @@ h2 {
 #leaderboard-list li > strong { font-variant-numeric: tabular-nums; }
 #leaderboard-list em { align-self: center; padding: 1px 4px; background: var(--accent); color: white; font-size: 7px; font-style: normal; font-weight: 800; }
 .leaderboard-note { margin: 9px 0 0; color: #8f878b; }
-/* Dawn over the ranges while the mountain streams in. */
+/* Alpine action photograph while the mountain streams in. */
 #loading {
+  --loading-inset: clamp(20px, 3vw, 56px);
   position: absolute;
   inset: 0;
   display: flex;
@@ -729,8 +730,9 @@ h2 {
   gap: 14px;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 70% 55% at 62% 78%, #f3b58a55 0%, transparent 70%),
-    linear-gradient(180deg, #0b1424 0%, #1b3354 48%, #6a88ad 78%, #c7d6e6 100%);
+    linear-gradient(180deg, transparent 60%, #06132099 100%),
+    url('/branding/alpine-loading-1920x1080.jpg') 40% center / cover no-repeat,
+    #233e50;
   z-index: 20;
   transition: opacity .7s ease;
 }
@@ -738,28 +740,27 @@ h2 {
   opacity: 0;
   pointer-events: none;
 }
-.loading-range {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 42vh;
-}
-.loading-range .far { fill: #8ea6c2; opacity: .55; }
-.loading-range .near { fill: #e9f0f7; }
-.loading-range .snow { fill: #ffffff; }
 .loading-logo {
-  position: relative;
-  width: min(420px, 70vw);
+  position: absolute;
+  right: max(var(--loading-inset), env(safe-area-inset-right));
+  bottom: max(var(--loading-inset), env(safe-area-inset-bottom));
+  width: clamp(190px, 30vw, 460px);
   height: auto;
-  aspect-ratio: 3;
+  aspect-ratio: 690 / 320;
   overflow: visible;
   filter: drop-shadow(0 6px 18px #0008);
 }
+.loading-status {
+  position: absolute;
+  left: max(var(--loading-inset), env(safe-area-inset-left));
+  bottom: max(var(--loading-inset), env(safe-area-inset-bottom));
+  display: grid;
+  gap: 12px;
+}
 #loading h2 {
   position: relative;
-  font-size: 30px;
+  margin: 0;
+  font-size: clamp(12px, 1.1vw, 18px);
   letter-spacing: 3px;
   color: #f4f7fb;
   text-shadow: 0 2px 12px #0009;
@@ -774,6 +775,12 @@ h2 {
   border-radius: 2px;
   background: #ffffff30;
   overflow: hidden;
+}
+@media (max-width: 600px) {
+  .loading-logo { width: min(62vw, 300px); }
+  .loading-status {
+    bottom: calc(max(var(--loading-inset), env(safe-area-inset-bottom)) + min(62vw, 300px) * 320 / 690 + 24px);
+  }
 }
 .loading-bar i {
   position: absolute;
