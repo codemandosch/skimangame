@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600;700;800&family=Rubik+Wet+Paint&family=Sedgwick+Ave+Display&display=swap");
 :root {
   font-family: "Barlow", Arial, sans-serif;
   color: #fff;
@@ -441,7 +441,23 @@ footer span {
   width: 100%;
   max-width: 100%;
   height: auto;
+  aspect-ratio: 3;
   margin: 0 auto 20px;
+  overflow: visible;
+}
+.logo-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+#steez-word {
+  font-family: "Rubik Wet Paint", "Barlow Condensed", Impact, sans-serif;
+  font-size: 150px;
+}
+#steez-tag {
+  font-family: "Sedgwick Ave Display", "Barlow Condensed", Impact, sans-serif;
+  font-size: 118px;
 }
 #keyboard-guide {
   position: absolute;
@@ -737,6 +753,8 @@ h2 {
   position: relative;
   width: min(420px, 70vw);
   height: auto;
+  aspect-ratio: 3;
+  overflow: visible;
   filter: drop-shadow(0 6px 18px #0008);
 }
 #loading h2 {
