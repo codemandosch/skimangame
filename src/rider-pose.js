@@ -175,7 +175,7 @@ export function updateRiderPose(p, s, dt) {
   );
   p.torsoRotation.set(
     -0.12 - p.crouch * 0.5 - p.tuck * 0.28 - p.octo * 0.25,
-    rearGrab * -0.62 - p.blunt * 0.15 + lean * 0.1 - p.octo * 0.3,
+    rearGrab * -0.62 + lean * 0.1 - p.octo * 0.3,
     -lean * (0.52 + p.skid * .16),
   );
   // Mute curls the chest over the tucked knees and turns it toward the grabbed
@@ -224,17 +224,11 @@ export function updateRiderPose(p, s, dt) {
     );
     const rotation = new Euler(
       -skiTail * (i ? 1.05 : 0.58),
-      -side * 0.08 * (s.railing ? 0 : ground) + skiTail * side * 0.06,
+      // Blunt crosses the skis at the tips while reaching for the tail's end.
+      -side * 0.08 * (s.railing ? 0 : ground) + skiTail * side * 0.06 + skiBlunt * side * 0.59,
       -edge * 0.68,
       "YXZ",
     );
-    // Blunt keeps the skis parallel and stands the grabbed ski up steeper so
-    // the hand closes on the very end of its tail.
-    if (i) {
-      rotation.x -= skiBlunt * 0.2;
-      position.y -= skiBlunt * 0.1;
-      position.z += skiBlunt * 0.04;
-    }
     // Mute pulls both knees up together and crosses the skis in an X just in
     // front of the boots; the grabbed ski rides on top, rolled toward the hand.
     position.lerp(i ? v(0.08, 0.56, -0.24) : v(-0.1, 0.46, -0.16), skiMute);
@@ -346,7 +340,7 @@ export function updateRiderPose(p, s, dt) {
     target.lerp(v(side * 0.96, 0.52, 0).applyQuaternion(p.torsoQuaternion).add(p.hips), p.hangout);
     target.lerp(bowAnchors[i], p.bow);
     target.lerp(v(side * 0.64, 0.24, 0.93), p.wipeout);
-    const elbowPole = v(side * 1.1 + lean * 0.2, 1.25, 0.25);
+    const elbowPole = v(side * 1.1 + lean * 0.15, 1.3, 0.3);
     // A raised free arm keeps its elbow out and back rather than flipping.
     if (i === 1) elbowPole.lerp(v(1.4, 0.6, 0.2), raise);
     const limb = solveLimb(shoulder, target, elbowPole, 0.42, 0.4);
