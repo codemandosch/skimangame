@@ -230,8 +230,8 @@ test("partial turns across successive jumps allow sideways upright landings", ()
   assert.equal(s.bailTimer, 0, "sideways skis are still horizontal");
 });
 
-test("landing only wipes out at 90 degrees of tilt or beyond regardless of yaw", () => {
-  for (const degrees of [0, 49, 75, 89.9, 90, 90.1, 135, 180]) {
+test("landing wipes out at 65 degrees of tilt from the snow or beyond regardless of yaw", () => {
+  for (const degrees of [0, 49, 64.9, 65.1, 89.9, 135, 180]) {
     for (const direction of [-1, 1]) {
       for (const turns of [-2, 0, 2]) {
         for (const yaw of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
@@ -239,7 +239,7 @@ test("landing only wipes out at 90 degrees of tilt or beyond regardless of yaw",
           s.flip = direction * degrees * Math.PI / 180 + turns * Math.PI * 2;
           s.spin = yaw;
           resolveLanding(s);
-          assert.equal(s.bailTimer > 0, degrees >= 90,
+          assert.equal(s.bailTimer > 0, degrees >= 65,
             `tilt ${degrees}, direction ${direction}, turns ${turns}, yaw ${yaw}`);
         }
       }

@@ -163,7 +163,7 @@ export function stepMountain(s,input,dt,{launch,resolveLanding,updateAerial,even
   } else { s.y=floor; s.airHeight=0; }
   if(!s.airborne && !disabled && treeCollision(s.x,s.s)) {
     s.x=oldX; s.s=oldS; s.y=groundHeight(oldX,oldS);
-    s.speed=Math.min(s.speed,3); s.vx=0; s.vs=0; s.bailTimer=1.2;
+    s.speed=Math.min(s.speed,3); s.vx=0; s.vs=0; s.bailTimer=1.2; s.crash=null;
     s.message='TREE STRIKE';s.messageDetail='Turn away and find fresh snow';s.messageTimer=2;
     event(s,'bail');
   }
