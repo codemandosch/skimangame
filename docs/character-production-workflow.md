@@ -60,7 +60,6 @@ blender --background --python art/characters/freestyle-skier/build_game.py
 node art/characters/freestyle-skier/capture_poses.mjs
 blender --background --python art/characters/freestyle-skier/bake_poses.py
 blender --background --python art/characters/freestyle-skier/verify_bake.py
-npm test
 npm run build
 ```
 
