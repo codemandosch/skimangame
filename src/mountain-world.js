@@ -5,6 +5,7 @@ import { createFallenLogs } from './log-world.js';
 import { kickerShadingAt } from './kicker-shading.js';
 import { createParkLineWorld } from './park-line-world.js';
 import { createResortWorld } from './resort-world.js';
+import { LANDSCAPE } from './landscape-layout.js';
 
 const TILE=256, EXTENT=2560;
 // Fixed tile edges plus skirts prevent holes where neighboring LODs differ.
@@ -42,9 +43,10 @@ export function* buildMountainTileSteps(x0,s0,segments) {
     const i=vertexIndex++,p=i*3;
     positions[p]=x;positions[p+1]=y;positions[p+2]=-s;
     normals[p]=-g.x/length;normals[p+1]=1/length;normals[p+2]=g.s/length;
-    colors[p]=(.90-exposure*.34)*variation*(1-shade+crest);
-    colors[p+1]=(.95-exposure*.34)*variation*(1-shade*.83+crest);
-    colors[p+2]=(.99-exposure*.33)*variation*(1-shade*.6+crest);
+    // Neutral base: the snow shader owns the tint; kicker occlusion stays cool.
+    colors[p]=(1-exposure*.34)*variation*(1-shade+crest);
+    colors[p+1]=(1-exposure*.34)*variation*(1-shade*.83+crest);
+    colors[p+2]=(1-exposure*.33)*variation*(1-shade*.6+crest);
     return i;
   }
   for(let z=0;z<n;z++) for(let x=0;x<n;x++) {
@@ -97,46 +99,21 @@ export function* buildMountainTileSteps(x0,s0,segments) {
   return geometry;
 }
 
-function horizon(scene) {
-  const p=[],c=[],ix=[];const angular=480,bands=28;
-  const hash=(x,z)=>{const v=Math.sin(x*127.1+z*311.7)*43758.5453;return v-Math.floor(v);};
-  const noise=(x,z)=>{
-    const ix=Math.floor(x),iz=Math.floor(z),u=x-ix,v=z-iz;
-    const a=u*u*(3-2*u),b=v*v*(3-2*v);
-    return THREE.MathUtils.lerp(THREE.MathUtils.lerp(hash(ix,iz),hash(ix+1,iz),a),
-      THREE.MathUtils.lerp(hash(ix,iz+1),hash(ix+1,iz+1),a),b);
-  };
-  for(let r=0;r<=bands;r++)for(let a=0;a<=angular;a++){
-    const theta=a/angular*Math.PI*2,radius=3100+r*120;
-    const x=Math.sin(theta)*radius,z=-Math.cos(theta)*radius;
-    const profile=Math.pow(Math.sin(r/bands*Math.PI),.8);
-    // World-space detail produces branching ridges instead of a pleated ring.
-    const massif=noise(x*.00085,z*.00085)*.55+noise(x*.0019,z*.0019)*.3+noise(x*.0048,z*.0048)*.15;
-    const height=-100+profile*(180+Math.pow(massif,1.7)*1950);
-    p.push(x,height,z);
-    const snow=Math.max(0,Math.min(1,(height-620)/420));
-    const rock=noise(x*.011,z*.011)>.58 ? .52 : 1;
-    const frost=snow*rock;
-    c.push(.25+frost*.57,.33+frost*.54,.40+frost*.52);
-  }
-  for(let r=0;r<bands;r++)for(let a=0;a<angular;a++){
-    const i=r*(angular+1)+a,j=i+angular+1;ix.push(i,j,i+1,i+1,j,j+1);
-  }
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));g.setIndex(ix);g.computeVertexNormals();
-  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}));
-  m.name='Distant alpine ridgelines';scene.add(m);
-}
-
 export function createMountainWorld(scene,material,{now=()=>performance.now(),budgetMs=2}={}) {
   const tiles=[];
   for(let s=-EXTENT;s<EXTENT;s+=TILE) for(let x=-EXTENT;x<EXTENT;x+=TILE) {
+    // Corner tiles lie wholly on the valley floor the baked landscape draws.
+    const nearestX=Math.max(x,Math.min(0,x+TILE)),nearestS=Math.max(s,Math.min(0,s+TILE));
+    if(Math.hypot(nearestX,nearestS)>LANDSCAPE.innerRadius)continue;
     const distance=Math.hypot(x+TILE/2,s+TILE/2);
     const segments=distance<350?128:distance<850?64:distance<1250?32:16;
     const mesh=new THREE.Mesh(buildMountainTile(x,s,segments),material);
-    mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
+    // Terrain shadows come only from the baked sun visibility, so they never
+    // shift with the rider; the real-time map carries object shadows.
+    mesh.castShadow=false;mesh.receiveShadow=true;scene.add(mesh);
     tiles.push({x,s,segments,mesh});
   }
-  const forest=createAlpineTrees(scene,TREES);horizon(scene);
+  const forest=createAlpineTrees(scene,TREES);
   const logs=createFallenLogs(scene);
   createParkLineWorld(scene);
   createResortWorld(scene);

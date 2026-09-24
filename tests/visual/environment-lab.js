@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createRenderPipeline } from '../../src/render-pipeline.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createAlpineTrees } from '../../src/alpine-trees.js';
 import { createWorld } from '../../src/world.js';
@@ -9,12 +10,13 @@ import { TREES } from '../../src/blackridge.js';
 selectCourse('blackridge');
 const view=new URLSearchParams(location.search).get('view') || 'trees';
 const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,10000);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.5,30000);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.03;
+
 document.body.append(renderer.domElement);
+const pipeline=createRenderPipeline(renderer,scene,camera);
 const controls=new OrbitControls(camera,renderer.domElement);
 let world,effects,state,elapsed=0;
 if(view==='trees') {
@@ -30,7 +32,7 @@ if(view==='trees') {
 } else {
   const tree=TREES[14];
   state={x:tree.x,s:tree.s,y:tree.y,time:0,heading:0,speed:18,steer:.6,event:0,airborne:false};
-  world=createWorld(scene);world.update(state);
+  world=createWorld(scene);world.update(state,camera);
   camera.position.set(tree.x+24,tree.y+18,-tree.s+32);controls.target.set(tree.x,tree.y+4,-tree.s);
   if(view==='snow') {
     effects=createEffects(scene);
@@ -47,9 +49,9 @@ function frame(now) {
     state.x=tree.x+Math.cos(a)*12;state.s=tree.s+Math.sin(a)*12;
     state.y=groundHeight(state.x,state.s);state.vx=-Math.sin(a)*7.2;state.vs=Math.cos(a)*7.2;
     state.heading=a;state.speed=7.2;state.braking=true;state.time=elapsed;
-    world.update(state);effects.update(state,dt);
+    world.update(state,camera);effects.update(state,dt);
   }
-  renderer.render(scene,camera);requestAnimationFrame(frame);
+  pipeline.render();requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();pipeline.setSize(innerWidth,innerHeight);});
