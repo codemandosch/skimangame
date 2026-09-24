@@ -95,7 +95,7 @@ test('skating alternates ski pushes and drives both pole hands together', () => 
     assert.ok(drive.arms[i].polePitch < plant.arms[i].polePitch-.8);
     for (const p of [left,right,plant,drive]) assert.ok(p.legs[i].foot.distanceTo(p.skis[i].boot)<1e-6);
   }
-  const air=pose(Math.PI/2,{airborne:true});
-  assert.equal(air.skis[0].position.y,0);
-  assert.equal(air.skis[1].position.y,0);
+  // Skating strides never carry into the air pose.
+  const air=pose(Math.PI/2,{airborne:true}), glide=pose(Math.PI/2,{airborne:true,skating:0});
+  for (let i=0;i<2;i++) assert.ok(air.skis[i].position.distanceTo(glide.skis[i].position)<1e-9);
 });
