@@ -2,7 +2,7 @@ import { stepMountain } from './mountain-physics.js';
 import { skatingEffort, applySkating } from './skating.js';
 import { easeTopSpeed } from './top-speed.js';
 import { updateDaffy } from './daffy.js';
-import { advanceAerialRotation, aerialLanding } from './aerial-rotation.js';
+import { advanceAerialRotation, aerialLanding, levelAerialRotation } from './aerial-rotation.js';
 import { riderFrame, snowFrame } from './rider-frame.js';
 import { landingAttitude, chooseWipeout, LANDING_TILT_LIMIT, WIPEOUT_DURATION } from './wipeout.js';
 import { beginLandingSkid, advanceLandingSkid } from './landing-skid.js';
@@ -29,12 +29,19 @@ const AIR_FLIP_ACCEL = 4;
 // Released rotation coasts: a full-speed spin or flip winds down to zero
 // over this time.
 const ROTATION_RELEASE_TIME = 1;
+// Hands-off landing assist: active within this many seconds of touchdown,
+// fading in over the first LEVEL_ASSIST_FADE of that window and over
+// LEVEL_ASSIST_RAMP after the rotation keys are released.
+const LEVEL_ASSIST_WINDOW = 1;
+const LEVEL_ASSIST_FADE = 0.3;
+const LEVEL_ASSIST_RAMP = 0.35;
 const TAKEOFF_WINDOW = 0.12;
 const RAIL_SPIN_WINDOW = 0.35;
 // Keep a held charge available briefly after skiing off a ledge.
 const LATE_POP_WINDOW = 0.3;
 const MAX_TAKEOFF_VY = 15;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const airGravity = () => COURSE.openWorld ? 30.36 : 25.08;
 const approach = (v, target, rate, dt) =>
   v + (target - v) * (1 - Math.exp(-rate * dt));
 
@@ -90,6 +97,7 @@ export function createState() {
     daffyCompleted: false,
     airtime: 0,
     flightSettle: 0,
+    levelAssist: 0,
     airHeight: 0,
     score: 0,
     ...createScoringState(),
@@ -161,6 +169,7 @@ function launch(s, vy, flipInput = 0, spinInput = 0, frame = riderFrame(s), upwa
   s.vy = Math.min(upwardLimit, vy);
   s.airtime = 0;
   s.flightSettle = 0;
+  s.levelAssist = 0;
   s.railPop = false;
   s.railSpinHeld = false;
   s.spin = 0;
@@ -353,6 +362,17 @@ export function resolveLanding(s, gradient, { railCatch = false, collision = fal
   s.vy = 0;
 }
 
+// Follow the ballistic path ahead until it meets the snow; null if it stays
+// airborne past `horizon` seconds.
+function predictTouchdown(s, horizon) {
+  const gravity = airGravity(), step = 1 / 30;
+  for (let t = step; t <= horizon + 1e-9; t += step) {
+    const x = s.x + s.vx * t, z = s.s + s.vs * t;
+    if (s.y + s.vy * t - gravity * t * t / 2 <= groundHeight(x, z)) return { t, x, s: z };
+  }
+  return null;
+}
+
 function updateAerial(s, input, dt) {
     if(s.railCrash) input={};
     // Full authority at the lip, then progressively smaller corrections.
@@ -401,7 +421,7 @@ function updateAerial(s, input, dt) {
       const acceleration = (flipInput ? AIR_FLIP_ACCEL : 1.2) * flipControl;
       s.flipVelocity += clamp(target - s.flipVelocity, -acceleration * dt, acceleration * dt);
     } else {
-      // Brake angular velocity, never seek an angle or a level orientation.
+      // Brake angular velocity; any leveling is the separate landing assist.
       const deceleration = FLIP_SPEED / ROTATION_RELEASE_TIME * dt;
       s.flipVelocity -= clamp(s.flipVelocity, -deceleration, deceleration);
     }
@@ -415,10 +435,21 @@ function updateAerial(s, input, dt) {
     // Holding a grab tucks the body and spins faster; spinVelocity itself is
     // untouched, so letting go returns straight to the current speed.
     const spinScale = s.grab ? GRAB_SPIN_BOOST : 1;
+    // Hands off in the last second before touchdown: gently line the skis up
+    // with the snow they're about to land on. It eases in after release and
+    // as the snow nears.
+    const handsOff = !spinInput && !flipInput && !pitchInput && !s.railCrash;
+    s.levelAssist = handsOff ? Math.min(1, (s.levelAssist || 0) + dt / LEVEL_ASSIST_RAMP) : 0;
+    const touchdown = s.levelAssist && predictTouchdown(s, LEVEL_ASSIST_WINDOW);
+    if (touchdown) {
+      const lead = clamp((LEVEL_ASSIST_WINDOW - touchdown.t) / LEVEL_ASSIST_FADE, 0, 1);
+      const landing = snowFrame({ x: touchdown.x, s: touchdown.s, heading: s.heading });
+      levelAerialRotation(s, landing, s.levelAssist * lead * lead * (3 - 2 * lead), dt);
+    }
     advanceAerialRotation(s, dt, spinScale);
     s.spin += s.spinVelocity * spinScale * dt;
     s.flip += s.flipVelocity * dt;
-      s.vy -= (COURSE.openWorld ? 30.36 : 25.08) * dt;
+      s.vy -= airGravity() * dt;
     s.y += s.vy * dt;
     updateCombo(s);
 }

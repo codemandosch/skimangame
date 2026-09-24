@@ -1,12 +1,19 @@
 import { Euler, Quaternion, Vector3 } from 'three';
+import { flightFrame } from './rider-frame.js';
 
 const axis = new Vector3();
 const delta = new Quaternion();
+const parent = new Quaternion();
+const level = new Vector3();
 const euler = new Euler(0, 0, 0, 'YXZ');
 const up = new Vector3();
 const forward = new Vector3();
 const TAU = Math.PI * 2;
 const unwrap = (angle, previous) => previous + Math.atan2(Math.sin(angle - previous), Math.cos(angle - previous));
+// Hands-off leveling near the snow: proportional to the remaining tilt, but
+// capped well below trick rotation speed so it only nudges a landing.
+const LEVEL_GAIN = 1.6;
+const LEVEL_MAX_RATE = 1.1;
 
 // The trick frame stays fixed at takeoff. Integrating one angular-velocity
 // vector avoids the continually moving flip axis of yaw/pitch Euler stacking.
@@ -38,6 +45,30 @@ export function advanceAerialRotation(s, dt, spinScale = 1) {
   }
   s.spinTravel = Math.max(s.spinTravel, Math.abs(s.airSpin));
   s.flipTravel = Math.max(s.flipTravel, Math.abs(s.airPitch));
+}
+
+// Swing the body's up axis toward the landing snow's normal without twisting
+// about it, so a spin keeps its heading. `ground` is a snow frame (pitch/roll
+// along the heading) like the landing check uses; `strength` (0..1) fades
+// the assist in and out.
+export function levelAerialRotation(s, ground, strength, dt) {
+  if (!s.airRotation || strength <= 0) return;
+  // The trick rotation sits inside the flight frame and the stance yaw. Both
+  // frames share the heading yaw, so it cancels and is left out.
+  const frame = flightFrame(s);
+  parent.setFromEuler(euler.set(frame.pitch, 0, frame.roll))
+    .multiply(delta.setFromEuler(euler.set(0, -(s.stanceYaw + s.yawOffset), 0)));
+  level.set(0, 1, 0)
+    .applyQuaternion(delta.setFromEuler(euler.set(ground.pitch, 0, ground.roll)))
+    .applyQuaternion(parent.invert());
+  up.set(0, 1, 0).applyQuaternion(s.airRotation);
+  axis.crossVectors(up, level);
+  const length = axis.length();
+  if (length < 1e-6) return;
+  const angle = Math.atan2(length, up.dot(level));
+  const step = Math.min(angle, Math.min(LEVEL_MAX_RATE, LEVEL_GAIN * angle) * strength * dt);
+  delta.setFromAxisAngle(axis.multiplyScalar(1 / length), step);
+  s.airRotation.premultiply(delta).normalize();
 }
 
 // Shared by rendering and landing. Also supports authored/static poses that
